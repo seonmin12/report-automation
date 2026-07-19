@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+data/portal/*.xlsx
+data/raw/*.csv
+data/mapping/*.xlsx
+!data/**/.gitkeep
+
+output/*.xlsx
+output/*.txt
+output/*.png
+!output/.gitkeep
