@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib import font_manager
 
+from config import COL_VALIDATION_STATUS, STATUS_NEEDS_REVIEW
+
 # 한글이 네모(tofu)로 깨지지 않도록, 시스템에 설치된 한글 폰트를 우선 사용
 _KOREAN_FONT_CANDIDATES = ["AppleGothic", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"]
 
@@ -49,6 +51,12 @@ def build_summary_image(summary_df: pd.DataFrame, output_path, title: str = "실
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1, 1.5)
+
+    if COL_VALIDATION_STATUS in summary_df.columns:
+        status_col_idx = summary_df.columns.get_loc(COL_VALIDATION_STATUS)
+        for row_idx, status in enumerate(summary_df[COL_VALIDATION_STATUS], start=1):
+            if status == STATUS_NEEDS_REVIEW:
+                table[row_idx, status_col_idx].set_text_props(color="#C00000", weight="bold")
 
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(fig)

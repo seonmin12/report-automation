@@ -8,6 +8,7 @@ DataFrame으로 직접 만들어 테스트한다 (더미데이터 생성기에 �
 import pandas as pd
 
 from config import (
+    COL_MAPPING_DATE,
     COL_OPERATOR_CODE,
     COL_PRODUCT_CODE,
     COL_PRODUCT_NAME,
@@ -140,7 +141,11 @@ def test_check_inactive_product_usage_no_issue_when_all_active():
 def test_check_name_mismatch_detects_different_names():
     """동일 상품코드의 상품명 불일치가 검출되는지 확인."""
     mapping_df = pd.DataFrame(
-        {COL_PRODUCT_CODE: ["A001", "A002"], COL_PRODUCT_NAME: ["표준상품A", "표준상품B"]}
+        {
+            COL_PRODUCT_CODE: ["A001", "A002"],
+            COL_PRODUCT_NAME: ["표준상품A", "표준상품B"],
+            COL_OPERATOR_CODE: ["MVN01", "MVN02"],
+        }
     )
     raw_df = pd.DataFrame(
         {
@@ -156,15 +161,85 @@ def test_check_name_mismatch_detects_different_names():
 
     assert set(result[COL_PRODUCT_CODE]) == {"A001"}
     row = result.loc[result[COL_PRODUCT_CODE] == "A001"].iloc[0]
+    assert row[COL_OPERATOR_CODE] == "MVN01"
     assert row[validate.COL_MAPPING_NAME] == "표준상품A"
     assert "변경된상품A" in row[validate.COL_RAW_NAME]
 
 
 def test_check_name_mismatch_no_issue_when_names_consistent():
-    mapping_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["표준상품A"]})
+    mapping_df = pd.DataFrame(
+        {
+            COL_PRODUCT_CODE: ["A001"],
+            COL_PRODUCT_NAME: ["표준상품A"],
+            COL_OPERATOR_CODE: ["MVN01"],
+        }
+    )
     raw_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["표준상품A"]})
     portal_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["표준상품A"]})
 
     result = validate.check_name_mismatch(raw_df, portal_df, mapping_df)
+
+    assert result.empty
+
+
+def test_build_issue_detail_table_combines_all_check_types():
+    """4종 검증 결과가 공통 스키마(오류유형/상세내용)로 통합되는지 확인."""
+    mapping_df = pd.DataFrame(
+        {
+            COL_PRODUCT_CODE: ["A001", "A001", "A002"],
+            COL_PRODUCT_NAME: ["상품A", "상품A", "상품B"],
+            COL_OPERATOR_CODE: ["MVN01", "MVN01", "MVN02"],
+            COL_USE_YN: [USE_YN_ACTIVE, USE_YN_ACTIVE, USE_YN_INACTIVE],
+            COL_MAPPING_DATE: ["2026-01-01", "2026-01-01", "2026-01-01"],
+        }
+    )
+    raw_df = pd.DataFrame(
+        {
+            COL_TXN_ID: ["T1", "T2"],
+            COL_PRODUCT_CODE: ["A002", "B999"],
+            COL_PRODUCT_NAME: ["상품B", "미확인상품"],
+            COL_OPERATOR_CODE: ["MVN02", "MVN03"],
+        }
+    )
+    portal_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["상품A"]})
+
+    validation_results = validate.run_all_validations(raw_df, portal_df, mapping_df)
+    result = validate.build_issue_detail_table(validation_results)
+
+    issue_types = set(result[validate.COL_ISSUE_TYPE])
+    assert validate.ISSUE_TYPE_MISSING_MAPPING in issue_types
+    assert validate.ISSUE_TYPE_DUPLICATE_MAPPING in issue_types
+    assert validate.ISSUE_TYPE_INACTIVE_USAGE in issue_types
+    assert set(result.columns) == {
+        COL_PRODUCT_CODE,
+        COL_PRODUCT_NAME,
+        COL_OPERATOR_CODE,
+        validate.COL_ISSUE_TYPE,
+        validate.COL_ISSUE_DETAIL,
+    }
+
+
+def test_build_issue_detail_table_empty_when_no_issues():
+    mapping_df = pd.DataFrame(
+        {
+            COL_PRODUCT_CODE: ["A001"],
+            COL_PRODUCT_NAME: ["상품A"],
+            COL_OPERATOR_CODE: ["MVN01"],
+            COL_USE_YN: [USE_YN_ACTIVE],
+            COL_MAPPING_DATE: ["2026-01-01"],
+        }
+    )
+    raw_df = pd.DataFrame(
+        {
+            COL_TXN_ID: ["T1"],
+            COL_PRODUCT_CODE: ["A001"],
+            COL_PRODUCT_NAME: ["상품A"],
+            COL_OPERATOR_CODE: ["MVN01"],
+        }
+    )
+    portal_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["상품A"]})
+
+    validation_results = validate.run_all_validations(raw_df, portal_df, mapping_df)
+    result = validate.build_issue_detail_table(validation_results)
 
     assert result.empty

@@ -134,6 +134,12 @@ def generate_raw_transactions(
     code_to_name = unique_mapping[COL_PRODUCT_NAME]
     code_to_operator = unique_mapping[COL_OPERATOR_CODE]
 
+    # 매핑 누락 상품코드도 실제 상품처럼 사업자 하나에 고정 (매 거래마다 무작위 배정하면
+    # 사업자 전체에 결함이 퍼져서 '검증상태' 컬럼이 항상 확인필요로만 나오게 됨)
+    unmapped_code_operator = {
+        code: _rng.choice(DUMMY_OPERATORS)[COL_OPERATOR_CODE] for code in unmapped_codes
+    }
+
     # 특정 상품코드는 RAW에서 항상 매핑표 표준명과 다른 이름으로 기록 (명칭 불일치 케이스)
     mismatch_codes = set(_rng.sample(active_codes, N_NAME_MISMATCH_PRODUCTS))
 
@@ -148,7 +154,7 @@ def generate_raw_transactions(
         draw = _rng.random()
         if draw < UNMAPPED_TXN_RATIO:
             product_code = _rng.choice(unmapped_codes)
-            operator_code = _rng.choice(DUMMY_OPERATORS)[COL_OPERATOR_CODE]
+            operator_code = unmapped_code_operator[product_code]
             product_name = f"미확인상품_{product_code}"
         elif draw < UNMAPPED_TXN_RATIO + INACTIVE_TXN_RATIO and inactive_codes:
             product_code = _rng.choice(inactive_codes)

@@ -16,6 +16,9 @@ from config import (
     COL_OPERATOR_NAME,
     COL_PRODUCT_CODE,
     COL_PRODUCT_NAME,
+    COL_VALIDATION_STATUS,
+    STATUS_NEEDS_REVIEW,
+    STATUS_OK,
 )
 
 # 차이 판정 임계치 (이 값 이상 벗어나면 '이상' 플래그)
@@ -64,12 +67,15 @@ def compare_portal_vs_raw(portal_df: pd.DataFrame, raw_agg_df: pd.DataFrame) -> 
     merged[COL_ISSUE_FLAG] = (merged[COL_DIFF_PCT] > DIFF_THRESHOLD_PCT) | (
         merged[COL_SOURCE] != SOURCE_BOTH
     )
+    merged[COL_VALIDATION_STATUS] = merged[COL_ISSUE_FLAG].map(
+        {True: STATUS_NEEDS_REVIEW, False: STATUS_OK}
+    )
 
     columns = (
         [COL_OPERATOR_CODE, COL_OPERATOR_NAME, COL_PRODUCT_CODE]
         + [f"{COL_PRODUCT_NAME}{_PORTAL_SUFFIX}", f"{COL_PRODUCT_NAME}{_RAW_SUFFIX}"]
         + [f"{col}{_PORTAL_SUFFIX}" for col in count_cols]
         + [f"{col}{_RAW_SUFFIX}" for col in count_cols]
-        + [COL_DIFF, COL_DIFF_PCT, COL_SOURCE, COL_ISSUE_FLAG]
+        + [COL_DIFF, COL_DIFF_PCT, COL_SOURCE, COL_ISSUE_FLAG, COL_VALIDATION_STATUS]
     )
     return merged[columns].sort_values(COL_DIFF_PCT, ascending=False).reset_index(drop=True)

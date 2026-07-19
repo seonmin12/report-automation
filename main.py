@@ -23,6 +23,33 @@ from src import (
 )
 
 
+def _attach_operator_status(
+    operator_summary_df: pd.DataFrame,
+    compare_df: pd.DataFrame,
+    validation_results: dict,
+) -> pd.DataFrame:
+    """사업자별 요약에 검증상태(정상/확인필요) 컬럼을 추가.
+
+    실적비교 이상 항목 또는 매핑 이슈 4종 중 하나라도 걸린 사업자는 '확인필요'로 표시한다.
+    """
+    flagged_operators = set()
+
+    if not compare_df.empty:
+        flagged_operators.update(
+            compare_df.loc[compare_df[compare.COL_ISSUE_FLAG], config.COL_OPERATOR_CODE]
+        )
+
+    for df in validation_results.values():
+        if config.COL_OPERATOR_CODE in df.columns:
+            flagged_operators.update(df[config.COL_OPERATOR_CODE])
+
+    result = operator_summary_df.copy()
+    result[config.COL_VALIDATION_STATUS] = result[config.COL_OPERATOR_CODE].apply(
+        lambda code: config.STATUS_NEEDS_REVIEW if code in flagged_operators else config.STATUS_OK
+    )
+    return result
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="실적 데이터 검증 및 리포트 자동화")
     parser.add_argument(
@@ -58,13 +85,16 @@ def run_pipeline(as_of_date: date):
 
     compare_df = compare.compare_portal_vs_raw(portal_df, operator_product_df)
     validation_results = validate.run_all_validations(raw_df, portal_df, mapping_df)
+    operator_summary_df = _attach_operator_status(operator_summary_df, compare_df, validation_results)
 
     date_str = as_of_date.strftime("%Y%m%d")
     xlsx_path = config.OUTPUT_DIR / f"validation_report_{date_str}.xlsx"
     txt_path = config.OUTPUT_DIR / f"summary_{date_str}.txt"
     png_path = config.OUTPUT_DIR / f"summary_{date_str}.png"
 
-    report_builder.build_excel_report(compare_df, validation_results, operator_summary_df, xlsx_path)
+    report_builder.build_excel_report(
+        as_of_date, compare_df, validation_results, operator_summary_df, xlsx_path
+    )
 
     text_summary = summary_writer.build_text_summary(
         as_of_date, compare_df, validation_results, operator_summary_df

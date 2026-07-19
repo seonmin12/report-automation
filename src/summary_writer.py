@@ -9,10 +9,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import COL_OPERATOR_NAME
+from config import COL_OPERATOR_NAME, COL_VALIDATION_STATUS, STATUS_OK
 
 from .aggregate import COL_CUMULATIVE_COUNT
 from .compare import COL_ISSUE_FLAG, DIFF_THRESHOLD_PCT
+from .validate import COL_ISSUE_TYPE, build_issue_detail_table
 
 
 def build_text_summary(
@@ -22,18 +23,29 @@ def build_text_summary(
     operator_summary_df: pd.DataFrame,
 ) -> str:
     """검증 결과를 텍스트 요약문으로 변환."""
+    compare_total = len(compare_df)
     compare_issue_count = int(compare_df[COL_ISSUE_FLAG].sum()) if not compare_df.empty else 0
 
-    issue_summary = " / ".join(f"{name} {len(df)}건" for name, df in validation_results.items())
+    issue_detail_df = build_issue_detail_table(validation_results)
+    issue_summary = (
+        " / ".join(
+            f"{issue_type} {count}건"
+            for issue_type, count in issue_detail_df[COL_ISSUE_TYPE].value_counts().items()
+        )
+        if not issue_detail_df.empty
+        else "이슈 없음"
+    )
 
     lines = [
         f"[실적 검증 요약 - {as_of_date.strftime('%Y.%m.%d')} 기준]",
-        f"- 실적 비교: 이상 {compare_issue_count}건 (임계치 {DIFF_THRESHOLD_PCT}% 초과 또는 한쪽에만 존재)",
-        f"- 요금제 미매핑: {issue_summary}",
+        f"- 실적 비교: 총 {compare_total}건 중 확인필요 {compare_issue_count}건 "
+        f"(임계치 {DIFF_THRESHOLD_PCT}% 초과 또는 한쪽에만 존재)",
+        f"- 요금제 미매핑 이슈: 총 {len(issue_detail_df)}건 ({issue_summary})",
         "- 사업자별 누적가입자:",
     ]
     for _, row in operator_summary_df.iterrows():
-        lines.append(f"  · {row[COL_OPERATOR_NAME]}: {row[COL_CUMULATIVE_COUNT]:,}명")
+        status = row.get(COL_VALIDATION_STATUS, STATUS_OK)
+        lines.append(f"  · {row[COL_OPERATOR_NAME]}: {row[COL_CUMULATIVE_COUNT]:,}명 [{status}]")
 
     lines.append("※ 상세 내역은 첨부 엑셀 참고")
     return "\n".join(lines)
