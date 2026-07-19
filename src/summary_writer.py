@@ -5,8 +5,14 @@ Teams/이메일용 텍스트 요약 생성 모듈.
 """
 
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
+
+from config import COL_OPERATOR_NAME
+
+from .aggregate import COL_CUMULATIVE_COUNT
+from .compare import COL_ISSUE_FLAG, DIFF_THRESHOLD_PCT
 
 
 def build_text_summary(
@@ -15,21 +21,26 @@ def build_text_summary(
     validation_results: dict,
     operator_summary_df: pd.DataFrame,
 ) -> str:
-    """검증 결과를 텍스트 요약문으로 변환.
+    """검증 결과를 텍스트 요약문으로 변환."""
+    compare_issue_count = int(compare_df[COL_ISSUE_FLAG].sum()) if not compare_df.empty else 0
 
-    TODO: 아래와 같은 형태로 문자열 조립
-    [실적 검증 요약 - 2026.07.19 기준]
-    - 실적 비교: 이상 N건 (임계치 초과)
-    - 요금제 미매핑: N건 / 중복: N건 / 비활성상품 사용: N건 / 명칭불일치: N건
-    - 사업자별 누적가입자: (사업자명별 요약 1~2줄)
-    ※ 상세 내역은 첨부 엑셀 참고
-    """
-    raise NotImplementedError
+    issue_summary = " / ".join(f"{name} {len(df)}건" for name, df in validation_results.items())
+
+    lines = [
+        f"[실적 검증 요약 - {as_of_date.strftime('%Y.%m.%d')} 기준]",
+        f"- 실적 비교: 이상 {compare_issue_count}건 (임계치 {DIFF_THRESHOLD_PCT}% 초과 또는 한쪽에만 존재)",
+        f"- 요금제 미매핑: {issue_summary}",
+        "- 사업자별 누적가입자:",
+    ]
+    for _, row in operator_summary_df.iterrows():
+        lines.append(f"  · {row[COL_OPERATOR_NAME]}: {row[COL_CUMULATIVE_COUNT]:,}명")
+
+    lines.append("※ 상세 내역은 첨부 엑셀 참고")
+    return "\n".join(lines)
 
 
 def save_text_summary(text: str, output_path):
-    """텍스트 요약을 .txt 파일로 저장.
-
-    TODO: output_path.write_text(text, encoding="utf-8")
-    """
-    raise NotImplementedError
+    """텍스트 요약을 .txt 파일로 저장."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(text, encoding="utf-8")
