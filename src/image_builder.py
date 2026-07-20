@@ -7,9 +7,15 @@ matplotlib의 table 기능으로 핵심 요약표를 이미지로 렌더링한�
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib import font_manager
+import matplotlib
+
+# 화면에 띄우지 않고 파일로만 저장하므로 항상 non-interactive 백엔드를 쓴다.
+# GUI 백엔드(예: macOS의 MacOSX)는 메인 스레드 밖(웹 서버 워커 스레드 등)에서 호출되면 에러가 난다.
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import pandas as pd  # noqa: E402
+from matplotlib import font_manager  # noqa: E402
 
 from config import COL_VALIDATION_STATUS, STATUS_NEEDS_REVIEW
 

@@ -20,10 +20,15 @@ from config import (
     COL_PRODUCT_NAME,
     COL_TXN_DATE,
     COL_TXN_TYPE,
+    COL_VALIDATION_STATUS,
     DUMMY_OPERATORS,
+    STATUS_NEEDS_REVIEW,
+    STATUS_OK,
     TXN_TYPE_CHURN,
     TXN_TYPE_NEW,
 )
+
+from .compare import COL_ISSUE_FLAG
 
 # 사업자 단위 집계 전용 컬럼명
 COL_CUMULATIVE_COUNT = "누적가입자수"
@@ -90,3 +95,29 @@ def aggregate_by_operator(monthly_df: pd.DataFrame) -> pd.DataFrame:
     return summary[
         [COL_OPERATOR_CODE, COL_OPERATOR_NAME, COL_NEW_COUNT, COL_CHURN_COUNT, COL_CUMULATIVE_COUNT]
     ]
+
+
+def attach_validation_status(
+    operator_summary_df: pd.DataFrame,
+    compare_df: pd.DataFrame,
+    validation_results: dict,
+) -> pd.DataFrame:
+    """사업자별 요약에 검증상태(정상/확인필요) 컬럼을 추가.
+
+    실적비교 이상 항목 또는 매핑 이슈 4종 중 하나라도 걸린 사업자는 '확인필요'로 표시한다.
+    CLI(main.py)와 웹 대시보드(web/app.py) 양쪽에서 동일하게 재사용한다.
+    """
+    flagged_operators = set()
+
+    if not compare_df.empty:
+        flagged_operators.update(compare_df.loc[compare_df[COL_ISSUE_FLAG], COL_OPERATOR_CODE])
+
+    for df in validation_results.values():
+        if COL_OPERATOR_CODE in df.columns:
+            flagged_operators.update(df[COL_OPERATOR_CODE])
+
+    result = operator_summary_df.copy()
+    result[COL_VALIDATION_STATUS] = result[COL_OPERATOR_CODE].apply(
+        lambda code: STATUS_NEEDS_REVIEW if code in flagged_operators else STATUS_OK
+    )
+    return result

@@ -88,7 +88,7 @@ def write_dataframe_to_sheet(
         )
 
 
-def _build_error_detail_df(compare_df: pd.DataFrame, validation_results: dict) -> pd.DataFrame:
+def build_error_detail_df(compare_df: pd.DataFrame, validation_results: dict) -> pd.DataFrame:
     """실적비교 이상 항목 + 매핑 이슈 4종을 하나의 오류 목록으로 통합."""
     rows = []
 
@@ -187,7 +187,7 @@ def build_excel_report(
     output_path,
 ):
     """5개 시트로 구성된 검증 리포트 엑셀 생성."""
-    error_detail_df = _build_error_detail_df(compare_df, validation_results)
+    error_detail_df = build_error_detail_df(compare_df, validation_results)
 
     wb = Workbook()
 

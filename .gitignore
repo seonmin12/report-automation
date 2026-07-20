@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+.vercel/
 
 data/portal/*.xlsx
 data/raw/*.csv

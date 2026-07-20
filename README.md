@@ -39,7 +39,29 @@
 
 실제 SMTP 발송/사내 메일 인증정보 연동은 의도적으로 넣지 않았습니다. 자격증명을 코드에 두는 것도
 위험하고, 자동으로 실제 메일이 발송되는 것도 사람이 확인 없이는 위험한 동작이라 판단했습니다.
-(실제 원클릭 발송은 이후 웹서비스화 단계에서 발송 버튼 UI를 통해 붙일 계획입니다.)
+웹 대시보드에도 발송 버튼은 없고, 다운로드까지만 지원합니다.
+
+## 웹 대시보드 (조회/다운로드 전용)
+
+CLI와 동일한 검증 파이프라인을 FastAPI로 감싸서, 브라우저에서 바로 결과를 확인하고
+xlsx/png/eml을 다운로드할 수 있게 했습니다. 데이터를 바꾸거나 메일을 발송하는 기능은 없는
+읽기 전용(read-only) 서비스입니다.
+
+```bash
+uvicorn web.app:app --reload   # http://localhost:8000
+```
+
+| 라우트 | 내용 |
+|---|---|
+| `GET /` | 요약 카드 + 오류유형별 건수 + 사업자별 상태 + 오류상세 + 다운로드 버튼 |
+| `GET /api/summary` | 위 요약을 JSON으로 반환 |
+| `GET /download/{xlsx\|png\|eml}` | 각 산출물 파일 다운로드 |
+| `GET /health` | 헬스체크 |
+
+![웹 대시보드 스크린샷](docs/screenshots/web_dashboard.png)
+
+Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `vercel.json`으로 구성되어 있으며,
+`@vercel/python` 런타임을 사용합니다.
 
 ## TODO (진행 중)
 
@@ -54,7 +76,8 @@
 - [x] 테스트 작성
 - [x] 실행 결과 스크린샷 및 최종 설명 추가
 - [x] 실적 요약 이메일 초안(.eml) 자동 생성
-- [ ] 웹서비스화: 발송 버튼 UI + 실제 메일 발송 연동 (2단계)
+- [x] 웹서비스화 1차: FastAPI 조회/다운로드 대시보드 + Vercel 배포 설정
+- [ ] 웹서비스화 2차: 발송 버튼 UI + 실제 메일 발송 연동 (보안 검토 후 진행 예정)
 
 ## 기술 스택
 
@@ -63,7 +86,7 @@
 - openpyxl (Excel 리포트 생성 및 스타일링)
 - matplotlib / Pillow (요약 이미지 생성)
 - pytest (검증 로직 테스트)
-- (확장) FastAPI + Vercel (웹 서비스화, 2단계)
+- FastAPI + Jinja2 + Vercel (조회/다운로드 웹 대시보드)
 
 ## 폴더 구조
 
@@ -71,6 +94,7 @@
 mvno-report-automation/
 ├── README.md
 ├── requirements.txt
+├── vercel.json
 ├── config.py
 ├── data/
 │   ├── portal/       # 포털 실적 Excel 더미
@@ -87,11 +111,19 @@ mvno-report-automation/
 │   ├── summary_writer.py
 │   ├── image_builder.py
 │   └── email_writer.py
+├── web/
+│   ├── app.py            # FastAPI 조회/다운로드 대시보드
+│   └── templates/
+│       └── dashboard.html
+├── api/
+│   └── index.py          # Vercel 배포 진입점 (web/app.py 재노출)
 ├── output/            # 실행 결과물 (xlsx, txt, png, eml)
 ├── main.py
 └── tests/
     ├── test_validate.py
-    └── test_email_writer.py
+    ├── test_aggregate.py
+    ├── test_email_writer.py
+    └── test_web_app.py
 ```
 
 ## 실행 방법
@@ -176,3 +208,5 @@ python -m pytest tests/ -v                           # 검증 로직 테스트
 - openpyxl로 5개 시트 구성의 Excel 리포트, matplotlib으로 상태값이 강조된 요약 이미지까지 자동 생성
 - 반복 발송되던 실적 공지 메일까지 초안(.eml) 자동 생성으로 재현하되, 자격증명이 필요한 실제 발송은
   의도적으로 범위에서 제외 (보안/오발송 리스크를 고려한 설계 판단)
+- CLI로 검증한 파이프라인을 FastAPI로 그대로 감싸 웹 대시보드화. 새 로직을 추가하지 않고 기존
+  src 모듈을 재사용해서, 같은 검증 결과를 CLI·웹 두 진입점에서 일관되게 제공
