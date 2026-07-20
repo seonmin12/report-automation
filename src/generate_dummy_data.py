@@ -59,19 +59,28 @@ _rng = random.Random(RANDOM_SEED)
 # ------------------------------------------------------------------
 # 결함 케이스 규모 설정
 # ------------------------------------------------------------------
-N_INACTIVE_PRODUCTS = 4          # 매핑표에서 '비활성' 처리할 상품 수
-N_DUPLICATE_PRODUCTS = 2         # 매핑표에서 중복 등록할 상품 수
-N_UNMAPPED_PRODUCT_CODES = 3     # 매핑표에 없는데 RAW에는 등장하는 상품코드 수
-N_NAME_MISMATCH_PRODUCTS = 3     # RAW 상품명을 매핑표 표준명과 다르게 기록할 상품 수
+N_INACTIVE_PRODUCTS = 6          # 매핑표에서 '비활성' 처리할 상품 수
+N_DUPLICATE_PRODUCTS = 3         # 매핑표에서 중복 등록할 상품 수
+N_UNMAPPED_PRODUCT_CODES = 4     # 매핑표에 없는데 RAW에는 등장하는 상품코드 수
+N_NAME_MISMATCH_PRODUCTS = 4     # RAW 상품명을 매핑표 표준명과 다르게 기록할 상품 수
 
 UNMAPPED_TXN_RATIO = 0.03        # RAW 거래 중 매핑 누락 상품코드 비율
 INACTIVE_TXN_RATIO = 0.02        # RAW 거래 중 비활성 상품코드 비율
 PREV_MONTH_TXN_RATIO = 0.15      # RAW 거래 중 전월 거래 비율 (당월 필터링 테스트용)
 NEW_TXN_RATIO = 0.7              # 거래유형이 '신규'일 비율 (나머지는 '해지')
 
-PORTAL_PERTURB_RATIO = 0.12      # 포털 집계값을 의도적으로 어긋나게 할 행 비율
-PORTAL_ONLY_ROWS = 2              # 포털에만 존재하는 상품 행 개수
-RAW_ONLY_DROP_ROWS = 2             # 포털에서 누락시켜 RAW에만 존재하게 할 상품 행 개수
+PORTAL_PERTURB_RATIO = 0.1       # 포털 집계값을 의도적으로 어긋나게 할 행 비율
+PORTAL_ONLY_ROWS = 3              # 포털에만 존재하는 상품 행 개수
+RAW_ONLY_DROP_ROWS = 3             # 포털에서 누락시켜 RAW에만 존재하게 할 상품 행 개수
+
+# 모든 결함을 무작위로 흩뿌리면 사업자 수가 적을 때 전 사업자가 '확인필요'로만
+# 나온다. 마지막 N개 사업자는 어떤 결함 케이스에도 걸리지 않도록 보장해서
+# 검증상태(정상/확인필요)가 실제로 대비되어 보이게 한다.
+N_CLEAN_OPERATORS = 2
+CLEAN_OPERATOR_CODES = {op[COL_OPERATOR_CODE] for op in DUMMY_OPERATORS[-N_CLEAN_OPERATORS:]}
+NON_CLEAN_OPERATORS = [
+    op for op in DUMMY_OPERATORS if op[COL_OPERATOR_CODE] not in CLEAN_OPERATOR_CODES
+]
 
 
 def generate_product_mapping(n_products: int = N_PRODUCTS) -> pd.DataFrame:
@@ -101,13 +110,18 @@ def generate_product_mapping(n_products: int = N_PRODUCTS) -> pd.DataFrame:
 
     mapping_df = pd.DataFrame(rows)
 
+    # 결함은 CLEAN_OPERATOR_CODES에 속한 사업자의 상품에는 배정하지 않는다.
+    defect_eligible_idx = list(
+        mapping_df.index[~mapping_df[COL_OPERATOR_CODE].isin(CLEAN_OPERATOR_CODES)]
+    )
+
     # 일부 상품을 비활성 처리 (비활성 상품 사용 검증용)
-    inactive_idx = _rng.sample(list(mapping_df.index), N_INACTIVE_PRODUCTS)
+    inactive_idx = _rng.sample(defect_eligible_idx, N_INACTIVE_PRODUCTS)
     mapping_df.loc[inactive_idx, COL_USE_YN] = USE_YN_INACTIVE
     mapping_df.loc[inactive_idx, COL_NOTE] = "서비스 종료 상품"
 
     # 일부 상품코드를 중복 등록 (중복 검증용)
-    remaining_idx = [idx for idx in mapping_df.index if idx not in inactive_idx]
+    remaining_idx = [idx for idx in defect_eligible_idx if idx not in inactive_idx]
     dup_source_idx = _rng.sample(remaining_idx, N_DUPLICATE_PRODUCTS)
     dup_rows = mapping_df.loc[dup_source_idx].copy()
     dup_rows[COL_NOTE] = "중복 등록"
@@ -135,13 +149,18 @@ def generate_raw_transactions(
     code_to_operator = unique_mapping[COL_OPERATOR_CODE]
 
     # 매핑 누락 상품코드도 실제 상품처럼 사업자 하나에 고정 (매 거래마다 무작위 배정하면
-    # 사업자 전체에 결함이 퍼져서 '검증상태' 컬럼이 항상 확인필요로만 나오게 됨)
+    # 사업자 전체에 결함이 퍼져서 '검증상태' 컬럼이 항상 확인필요로만 나오게 됨).
+    # CLEAN_OPERATOR_CODES에 배정하지 않도록 NON_CLEAN_OPERATORS 중에서만 고른다.
     unmapped_code_operator = {
-        code: _rng.choice(DUMMY_OPERATORS)[COL_OPERATOR_CODE] for code in unmapped_codes
+        code: _rng.choice(NON_CLEAN_OPERATORS)[COL_OPERATOR_CODE] for code in unmapped_codes
     }
 
-    # 특정 상품코드는 RAW에서 항상 매핑표 표준명과 다른 이름으로 기록 (명칭 불일치 케이스)
-    mismatch_codes = set(_rng.sample(active_codes, N_NAME_MISMATCH_PRODUCTS))
+    # 특정 상품코드는 RAW에서 항상 매핑표 표준명과 다른 이름으로 기록 (명칭 불일치 케이스).
+    # 이 역시 CLEAN_OPERATOR_CODES 소속 상품은 제외한다.
+    mismatch_eligible_codes = [
+        code for code in active_codes if code_to_operator[code] not in CLEAN_OPERATOR_CODES
+    ]
+    mismatch_codes = set(_rng.sample(mismatch_eligible_codes, N_NAME_MISMATCH_PRODUCTS))
 
     month_start = DEFAULT_AS_OF_DATE.replace(day=1)
     prev_month_end = month_start - timedelta(days=1)
@@ -244,9 +263,14 @@ def generate_portal_performance(raw_df: pd.DataFrame) -> pd.DataFrame:
         ]
     ]
 
+    # 결함은 CLEAN_OPERATOR_CODES에 속한 사업자의 실적에는 적용하지 않는다.
+    defect_eligible_idx = list(
+        portal_df.index[~portal_df[COL_OPERATOR_CODE].isin(CLEAN_OPERATOR_CODES)]
+    )
+
     # 포털 집계값을 의도적으로 어긋나게 조정 (실적 비교 검증용)
     perturb_idx = _rng.sample(
-        list(portal_df.index), max(1, int(len(portal_df) * PORTAL_PERTURB_RATIO))
+        defect_eligible_idx, max(1, int(len(portal_df) * PORTAL_PERTURB_RATIO))
     )
     for idx in perturb_idx:
         delta = _rng.randint(2, 8) * _rng.choice([-1, 1])
@@ -256,13 +280,14 @@ def generate_portal_performance(raw_df: pd.DataFrame) -> pd.DataFrame:
         )
 
     # RAW에는 있지만 포털에서는 누락된 상품 (RAW에만 존재하는 케이스)
-    drop_idx = _rng.sample(list(portal_df.index), min(RAW_ONLY_DROP_ROWS, len(portal_df)))
+    drop_candidates = [idx for idx in defect_eligible_idx if idx not in perturb_idx]
+    drop_idx = _rng.sample(drop_candidates, min(RAW_ONLY_DROP_ROWS, len(drop_candidates)))
     portal_df = portal_df.drop(index=drop_idx).reset_index(drop=True)
 
     # 포털에만 존재하는 상품 (RAW에는 없는 실적) 추가
     extra_rows = []
     for i in range(PORTAL_ONLY_ROWS):
-        operator = _rng.choice(DUMMY_OPERATORS)
+        operator = _rng.choice(NON_CLEAN_OPERATORS)
         fake_code = f"PRDP{i + 1:02d}"
         new_count = _rng.randint(3, 10)
         churn_count = _rng.randint(0, 3)

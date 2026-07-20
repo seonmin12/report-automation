@@ -12,4 +12,5 @@ data/mapping/*.xlsx
 output/*.xlsx
 output/*.txt
 output/*.png
+output/*.eml
 !output/.gitkeep

@@ -20,6 +20,7 @@ from src import (
     report_builder,
     summary_writer,
     image_builder,
+    email_writer,
 )
 
 
@@ -91,6 +92,7 @@ def run_pipeline(as_of_date: date):
     xlsx_path = config.OUTPUT_DIR / f"validation_report_{date_str}.xlsx"
     txt_path = config.OUTPUT_DIR / f"summary_{date_str}.txt"
     png_path = config.OUTPUT_DIR / f"summary_{date_str}.png"
+    eml_path = config.OUTPUT_DIR / f"email_draft_{date_str}.eml"
 
     report_builder.build_excel_report(
         as_of_date, compare_df, validation_results, operator_summary_df, xlsx_path
@@ -105,11 +107,17 @@ def run_pipeline(as_of_date: date):
         operator_summary_df, png_path, title=f"사업자별 누적가입자 요약 ({date_str})"
     )
 
+    email_draft = email_writer.build_email_draft(
+        as_of_date, text_summary, attachment_paths=[xlsx_path, png_path]
+    )
+    email_writer.save_email_draft(email_draft, eml_path)
+
     print(text_summary)
     print()
     print(f"엑셀 리포트: {xlsx_path}")
     print(f"텍스트 요약: {txt_path}")
     print(f"요약 이미지: {png_path}")
+    print(f"이메일 초안: {eml_path}")
 
 
 def main():
