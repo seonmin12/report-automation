@@ -56,14 +56,18 @@
 위험하고, 자동으로 실제 메일이 발송되는 것도 사람이 확인 없이는 위험한 동작이라 판단했습니다.
 웹 대시보드에도 발송 버튼은 없고, 다운로드까지만 지원합니다.
 
-## 웹 대시보드: 파일 업로드 기반 검증 실행
+## 웹 서비스: FastAPI API + Vue 프론트엔드
 
-CLI와 동일한 검증 파이프라인을 FastAPI로 감싸서, 브라우저에서 직접 파일을 업로드하고 검증
-결과를 바로 확인할 수 있게 했습니다. 데이터를 영구 저장하거나 메일을 발송하는 기능은 없는
-읽기 전용(read-only) 서비스입니다.
+CLI와 동일한 검증 파이프라인을 FastAPI **JSON API**로 감싸고, 그 위에 별도의 **Vue 3 + Vite SPA**를
+프론트엔드로 붙였습니다. 백엔드는 화면을 그리지 않는 순수 API이고, 프론트는 API만 호출해서 화면을
+구성합니다. 데이터를 영구 저장하거나 메일을 발송하는 기능은 없는 읽기 전용(read-only) 서비스입니다.
 
 ```bash
-uvicorn web.app:app --reload   # http://localhost:8000
+# 터미널 1: 백엔드 API
+uvicorn web.app:app --reload            # http://localhost:8000
+
+# 터미널 2: 프론트엔드
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 사용자는 [`docs/data_dictionary.md`](docs/data_dictionary.md)에 정의된 형식으로 3개 파일을
@@ -78,27 +82,39 @@ uvicorn web.app:app --reload   # http://localhost:8000
 업로드된 파일은 서버 임시 디렉터리에서만 열어서 검증 파이프라인에 전달하고, DB에는 저장하지
 않습니다. 필수 컬럼이 없으면 검증을 실행하지 않고 어떤 컬럼이 빠졌는지 바로 알려줍니다.
 
+**백엔드 API** (`web/app.py`, 순수 JSON — HTML을 그리지 않음)
+
 | 라우트 | 메서드 | 내용 |
 |---|---|---|
-| `/` | GET | 파일 업로드 화면 |
-| `/upload` | POST | 3개 파일 업로드 → 검증 실행 → 결과 화면(HTML) 반환 |
-| `/demo` | GET | 더미데이터로 미리 채워진 결과 화면 (체험용) |
-| `/jobs/{job_id}` | GET | 특정 업로드 건의 결과 화면 재조회 |
-| `/api/validate` | POST | 업로드 → 검증 실행 → 요약 JSON 반환 (job_id 포함) |
-| `/api/summary/{job_id}` | GET | 검증 요약 JSON |
+| `/api/validate` | POST | 3개 파일 업로드 → 검증 실행 → 요약 JSON 반환 (job_id 포함) |
+| `/api/summary/{job_id}` | GET | 검증 요약 JSON (`demo`는 항상 존재하는 체험용 job) |
 | `/api/errors/{job_id}` | GET | 오류상세 JSON |
 | `/download/{job_id}/{xlsx\|png\|eml}` | GET | 해당 건의 산출물 다운로드 |
 | `/health` | GET | 헬스체크 |
 
-업로드 화면과 결과 화면:
+**프론트엔드** (`frontend/`, Vue 3 + Vite)
+
+| 컴포넌트 | 역할 |
+|---|---|
+| `App.vue` | 업로드 화면/결과 화면 전환, `?job=<id>`로 특정 결과 딥링크 |
+| `UploadForm.vue` | 3개 파일 + 기준일 업로드 폼, `/api/validate` 호출 |
+| `Dashboard.vue` | `job_id` 기준으로 summary/errors를 불러와 렌더링 |
+| `SummaryCards.vue` / `OperatorTable.vue` / `ErrorTable.vue` | 요약 카드 / 사업자별 상태 / 오류상세 표 |
+
+업로드 화면과 결과 화면 (`?job=demo`로 더미데이터 결과를 바로 볼 수 있습니다):
 
 ![업로드 화면](docs/screenshots/upload_page.png)
 
 ![웹 대시보드 결과 화면](docs/screenshots/web_dashboard.png)
 
-Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `vercel.json`으로 구성되어 있으며,
-`@vercel/python` 런타임을 사용합니다. 서버리스 환경에서는 job이 프로세스 메모리에만 유지되므로,
-콜드 스타트가 나면 이전 업로드 결과가 사라질 수 있습니다 (DB 없이 임시 처리하는 구조의 트레이드오프).
+로컬 개발에서는 프론트(`:5173`)와 백엔드(`:8000`)가 다른 포트라 CORS를 열어 두었습니다
+(`web/app.py`의 `CORSMiddleware`, 인증/쿠키가 없는 데모 API라 오리진을 넓게 허용해도 리스크가 낮습니다).
+
+Vercel 배포는 `vercel.json`에서 두 빌드를 함께 구성합니다: `api/index.py`(FastAPI 앱을 재노출하는
+진입점, `@vercel/python`)와 `frontend/`(정적 빌드, `@vercel/static-build`). `/api/*`, `/download/*`,
+`/health`는 API로, 나머지는 프론트 정적 파일로 라우팅됩니다. 서버리스 환경에서는 job이 프로세스
+메모리에만 유지되므로, 콜드 스타트가 나면 이전 업로드 결과가 사라질 수 있습니다 (DB 없이 임시
+처리하는 구조의 트레이드오프이며, `demo` job은 서버 시작 시 항상 다시 계산됩니다).
 
 ## TODO (진행 중)
 
@@ -114,7 +130,7 @@ Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `ve
 - [x] 실행 결과 스크린샷 및 최종 설명 추가
 - [x] 실적 요약 이메일 초안(.eml) 자동 생성
 - [x] Data Dictionary / Validation Rules 문서화
-- [x] 웹서비스화 1차: FastAPI 파일 업로드 기반 검증 실행 + 조회/다운로드 대시보드
+- [x] 웹서비스화 1차: FastAPI 파일 업로드 검증 API + Vue 3 프론트엔드
 - [ ] 실제 Vercel 배포 (현재는 배포 설정만 되어 있고 라이브 링크는 없음)
 - [ ] 웹서비스화 2차: 발송 버튼 UI + 실제 메일 발송 연동 (보안 검토 후 진행 예정)
 
@@ -125,7 +141,9 @@ Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `ve
 - openpyxl (Excel 리포트 생성 및 스타일링)
 - matplotlib / Pillow (요약 이미지 생성)
 - pytest (검증 로직 테스트)
-- FastAPI + Jinja2 + Vercel (파일 업로드 기반 검증 실행 웹 대시보드)
+- FastAPI (파일 업로드 검증 JSON API)
+- Vue 3 + Vite (프론트엔드 SPA)
+- Vercel (프론트엔드 정적 배포 + Python 서버리스 API)
 
 ## 폴더 구조
 
@@ -153,10 +171,17 @@ mvno-report-automation/
 │   ├── image_builder.py
 │   └── email_writer.py
 ├── web/
-│   ├── app.py            # FastAPI 업로드/검증/조회/다운로드 대시보드
-│   └── templates/
-│       ├── upload.html
-│       └── dashboard.html
+│   └── app.py            # FastAPI 업로드/검증/조회/다운로드 JSON API
+├── frontend/              # Vue 3 + Vite SPA
+│   └── src/
+│       ├── App.vue
+│       ├── api.js
+│       └── components/
+│           ├── UploadForm.vue
+│           ├── Dashboard.vue
+│           ├── SummaryCards.vue
+│           ├── OperatorTable.vue
+│           └── ErrorTable.vue
 ├── api/
 │   └── index.py          # Vercel 배포 진입점 (web/app.py 재노출)
 ├── output/            # 실행 결과물 (xlsx, txt, png, eml)
@@ -256,3 +281,6 @@ python -m pytest tests/ -v                           # 검증 로직 테스트
   그 기준으로 업로드 검증(필수 컬럼 체크)과 검증 로직을 구현 — 문서와 코드가 어긋나지 않도록 설계
 - 사용자가 직접 파일을 업로드해 검증을 실행하는 구조로 확장하되, DB 없이 서버 임시 디렉터리에서만
   처리해서 민감 데이터가 영구 저장되지 않도록 설계
+- 백엔드(FastAPI, 순수 JSON API)와 프론트엔드(Vue 3 SPA)를 분리해서 각자 독립적으로 배포·테스트
+  가능한 구조로 설계. 개발 중 실제로 스레드 안전하지 않은 공유 난수 생성기 때문에 동시 요청 시
+  결과가 달라지는 경합 조건을 발견해, 서버 시작 시점에 미리 계산해 두는 방식으로 수정

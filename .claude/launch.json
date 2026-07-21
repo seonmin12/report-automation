@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web-dashboard",
+      "name": "backend-api",
       "runtimeExecutable": ".venv/bin/uvicorn",
       "runtimeArgs": ["web.app:app", "--port", "8000", "--reload"],
       "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "--port", "5173"],
+      "port": 5173
     }
   ]
 }

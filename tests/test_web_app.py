@@ -1,7 +1,8 @@
 """
-web/app.py (FastAPI 대시보드 + 파일 업로드) 테스트.
+web/app.py (FastAPI 파일 업로드 검증 JSON API) 테스트.
 
 실제 서버를 띄우지 않고 TestClient로 라우트별 동작을 확인한다.
+프론트엔드(frontend/, Vue)는 별도이므로 여기서는 API 응답만 검증한다.
 """
 
 from io import BytesIO
@@ -86,47 +87,9 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 
-def test_upload_page_renders_form():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "포털 실적 파일" in response.text
-    assert "검증 실행" in response.text
-
-
-def test_demo_dashboard_renders_summary_and_operator_table():
-    response = client.get("/demo")
-
-    assert response.status_code == 200
-    assert "MVNO 실적 검증 대시보드" in response.text
-    assert "검증상태" in response.text
-    assert "오류상세" in response.text
-
-
-def test_job_dashboard_unknown_id_returns_404():
-    response = client.get("/jobs/does-not-exist")
+def test_job_summary_unknown_id_returns_404():
+    response = client.get("/api/summary/does-not-exist")
     assert response.status_code == 404
-
-
-def test_upload_and_validate_creates_job_and_renders_dashboard():
-    response = client.post("/upload", files=_make_valid_upload_files(), data={"asof_date": "2026-07-19"})
-
-    assert response.status_code == 200
-    assert "업로드한 파일 기준 결과" in response.text
-
-
-def test_upload_with_missing_column_returns_400_with_form():
-    files = _make_valid_upload_files()
-    # 매핑 파일에서 필수 컬럼(사용여부)이 빠진 것처럼 깨진 파일로 교체
-    broken_mapping_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["상품A"]})
-    buf = BytesIO()
-    broken_mapping_df.to_excel(buf, index=False)
-    buf.seek(0)
-    files["mapping_file"] = ("mapping.xlsx", buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    response = client.post("/upload", files=files, data={"asof_date": "2026-07-19"})
-
-    assert response.status_code == 400
-    assert "필수 컬럼이 없습니다" in response.text
 
 
 def test_api_validate_returns_job_id_and_summary():
@@ -138,12 +101,31 @@ def test_api_validate_returns_job_id_and_summary():
     body = response.json()
     assert "job_id" in body
     assert body["compare_total"] == 1
+    assert body["is_demo"] is False
+
+
+def test_api_validate_with_missing_column_returns_400():
+    files = _make_valid_upload_files()
+    # 매핑 파일에서 필수 컬럼(사용여부 등)이 빠진 것처럼 깨진 파일로 교체
+    broken_mapping_df = pd.DataFrame({COL_PRODUCT_CODE: ["A001"], COL_PRODUCT_NAME: ["상품A"]})
+    buf = BytesIO()
+    broken_mapping_df.to_excel(buf, index=False)
+    buf.seek(0)
+    files["mapping_file"] = ("mapping.xlsx", buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    response = client.post("/api/validate", files=files, data={"asof_date": "2026-07-19"})
+
+    assert response.status_code == 400
+    assert "필수 컬럼이 없습니다" in response.json()["detail"]
 
 
 def test_api_summary_and_errors_for_demo_job():
     summary = client.get("/api/summary/demo")
     assert summary.status_code == 200
-    assert len(summary.json()["operators"]) == 8
+    body = summary.json()
+    assert body["is_demo"] is True
+    assert len(body["operators"]) == 8
+    assert "issue_type_counts" in body
 
     errors = client.get("/api/errors/demo")
     assert errors.status_code == 200

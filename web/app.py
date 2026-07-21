@@ -1,22 +1,23 @@
 """
-파일 업로드 기반 검증 실행 + 조회/다운로드 FastAPI 대시보드.
+파일 업로드 기반 검증 실행 API.
 
-CLI(main.py)가 만드는 것과 동일한 검증 파이프라인을 웹에서 실행할 수 있게 한다.
+CLI(main.py)가 만드는 것과 동일한 검증 파이프라인을 웹에서 실행할 수 있게 하는 순수 JSON API다.
+프론트엔드(frontend/, Vue 3 + Vite)가 이 API를 호출해서 화면을 그린다.
 사용자가 포털 실적/RAW/매핑 기준표 3개 파일을 업로드하면 서버 임시 디렉터리에서만
-처리하고(DB 저장 없음), 검증 결과를 화면에 보여주고 xlsx/png/eml을 다운로드할 수 있게 한다.
+처리하고(DB 저장 없음), 검증 결과를 JSON으로 반환하고 xlsx/png/eml을 다운로드할 수 있게 한다.
 실제 이메일 발송이나 원본 데이터의 영구 저장은 하지 않는다.
 """
 
 import tempfile
 import uuid
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from starlette.requests import Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 
 import config
 from src import (
@@ -30,10 +31,27 @@ from src import (
     validate,
 )
 
-app = FastAPI(title="MVNO 실적 검증 대시보드")
 
-_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 데모 job은 더미데이터 생성기가 공유하는 시드 고정 난수 생성기(random.Random)를 쓰는데,
+    # 요청이 들어올 때 지연 계산하면 동시에 두 요청(예: summary+errors 병렬 호출)이 동시에
+    # "아직 없으니 생성"을 시도해 스레드 안전하지 않은 난수 생성기를 함께 건드리는 경합이
+    # 생길 수 있다. 서버가 요청을 받기 전에 한 번만 미리 계산해 두면 이 경합을 원천 차단한다.
+    _get_or_create_demo_job()
+    yield
+
+
+app = FastAPI(title="MVNO 실적 검증 API", lifespan=lifespan)
+
+# 프론트(Vue, Vite 개발 서버는 기본적으로 다른 포트)에서 호출하므로 CORS를 열어 둔다.
+# 인증/쿠키를 쓰지 않는 데모 API라 오리진을 넓게 허용해도 리스크가 낮다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 서버리스 환경에서는 요청마다 새 프로세스가 뜰 수 있으므로, 같은 프로세스 안에서만
 # 유지되는 단순 인메모리 job 저장소. DB는 의도적으로 쓰지 않는다 (docs/validation_rules.md 참고).
@@ -184,99 +202,36 @@ def _process_upload(
     return job_id, _jobs[job_id]
 
 
-def _dashboard_context(request: Request, job_id: str, result: dict) -> dict:
+def _summary_payload(job_id: str, result: dict) -> dict:
     compare_df = result["compare_df"]
     error_detail_df = result["error_detail_df"]
-    operator_summary_df = result["operator_summary_df"]
 
     compare_total = len(compare_df)
     compare_issue_count = (
         int(compare_df[compare.COL_ISSUE_FLAG].sum()) if not compare_df.empty else 0
     )
     issue_type_counts = (
-        list(error_detail_df[validate.COL_ISSUE_TYPE].value_counts().items())
+        error_detail_df[validate.COL_ISSUE_TYPE].value_counts().to_dict()
         if not error_detail_df.empty
-        else []
+        else {}
     )
 
     return {
-        "request": request,
         "job_id": job_id,
         "is_demo": job_id == DEMO_JOB_ID,
-        "as_of_date": result["as_of_date"].strftime("%Y-%m-%d"),
+        "as_of_date": result["as_of_date"].isoformat(),
         "compare_total": compare_total,
         "compare_normal_count": compare_total - compare_issue_count,
         "compare_issue_count": compare_issue_count,
-        "issue_type_counts": issue_type_counts,
         "total_issue_count": len(error_detail_df),
-        "operators": operator_summary_df.to_dict(orient="records"),
-        "error_rows": error_detail_df.to_dict(orient="records"),
-        "col_operator_code": config.COL_OPERATOR_CODE,
-        "col_operator_name": config.COL_OPERATOR_NAME,
-        "col_new_count": config.COL_NEW_COUNT,
-        "col_churn_count": config.COL_CHURN_COUNT,
-        "col_cumulative_count": aggregate.COL_CUMULATIVE_COUNT,
-        "col_validation_status": config.COL_VALIDATION_STATUS,
-        "status_needs_review": config.STATUS_NEEDS_REVIEW,
-        "col_issue_type": validate.COL_ISSUE_TYPE,
-        "col_issue_detail": validate.COL_ISSUE_DETAIL,
-        "col_product_code": config.COL_PRODUCT_CODE,
+        "issue_type_counts": issue_type_counts,
+        "operators": result["operator_summary_df"].to_dict(orient="records"),
     }
-
-
-@app.exception_handler(HTTPException)
-async def _upload_error_handler(request: Request, exc: HTTPException):
-    """/upload에서 난 에러는 업로드 폼에 에러 메시지를 얹어 다시 보여준다."""
-    if request.url.path == "/upload" and exc.status_code < 500:
-        return templates.TemplateResponse(
-            request,
-            "upload.html",
-            {"error": exc.detail, "default_asof": str(config.DEFAULT_AS_OF_DATE)},
-            status_code=exc.status_code,
-        )
-    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/", response_class=HTMLResponse)
-def upload_page(request: Request):
-    return templates.TemplateResponse(
-        request, "upload.html", {"default_asof": str(config.DEFAULT_AS_OF_DATE)}
-    )
-
-
-@app.get("/demo", response_class=HTMLResponse)
-def demo_dashboard(request: Request):
-    result = _get_or_create_demo_job()
-    return templates.TemplateResponse(
-        request, "dashboard.html", _dashboard_context(request, DEMO_JOB_ID, result)
-    )
-
-
-@app.get("/jobs/{job_id}", response_class=HTMLResponse)
-def job_dashboard(request: Request, job_id: str):
-    result = _get_job(job_id)
-    return templates.TemplateResponse(
-        request, "dashboard.html", _dashboard_context(request, job_id, result)
-    )
-
-
-@app.post("/upload", response_class=HTMLResponse)
-def upload_and_validate(
-    request: Request,
-    portal_file: UploadFile = File(...),
-    raw_file: UploadFile = File(...),
-    mapping_file: UploadFile = File(...),
-    asof_date: str = Form(default=str(config.DEFAULT_AS_OF_DATE)),
-):
-    job_id, result = _process_upload(portal_file, raw_file, mapping_file, asof_date)
-    return templates.TemplateResponse(
-        request, "dashboard.html", _dashboard_context(request, job_id, result)
-    )
 
 
 @app.post("/api/validate")
@@ -287,40 +242,13 @@ def api_validate(
     asof_date: str = Form(default=str(config.DEFAULT_AS_OF_DATE)),
 ):
     job_id, result = _process_upload(portal_file, raw_file, mapping_file, asof_date)
-    compare_df = result["compare_df"]
-    compare_total = len(compare_df)
-    compare_issue_count = (
-        int(compare_df[compare.COL_ISSUE_FLAG].sum()) if not compare_df.empty else 0
-    )
-    return JSONResponse(
-        {
-            "job_id": job_id,
-            "as_of_date": result["as_of_date"].isoformat(),
-            "compare_total": compare_total,
-            "compare_issue_count": compare_issue_count,
-            "total_issue_count": len(result["error_detail_df"]),
-        }
-    )
+    return JSONResponse(_summary_payload(job_id, result))
 
 
 @app.get("/api/summary/{job_id}")
 def api_summary(job_id: str):
     result = _get_job(job_id)
-    compare_df = result["compare_df"]
-    compare_total = len(compare_df)
-    compare_issue_count = (
-        int(compare_df[compare.COL_ISSUE_FLAG].sum()) if not compare_df.empty else 0
-    )
-    return JSONResponse(
-        {
-            "job_id": job_id,
-            "as_of_date": result["as_of_date"].isoformat(),
-            "compare_total": compare_total,
-            "compare_issue_count": compare_issue_count,
-            "total_issue_count": len(result["error_detail_df"]),
-            "operators": result["operator_summary_df"].to_dict(orient="records"),
-        }
-    )
+    return JSONResponse(_summary_payload(job_id, result))
 
 
 @app.get("/api/errors/{job_id}")
