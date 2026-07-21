@@ -4,7 +4,7 @@ defineProps({ errors: { type: Array, required: true } })
 
 <template>
   <section>
-    <h2>오류상세</h2>
+    <h2>오류상세 <span class="count-pill">{{ errors.length }}</span></h2>
     <div class="table-scroll">
       <table>
         <thead>

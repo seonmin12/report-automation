@@ -32,14 +32,20 @@ watchEffect(async () => {
 </script>
 
 <template>
-  <div v-if="loading">불러오는 중...</div>
+  <div v-if="loading" class="loading-state">
+    <span class="spinner"></span> 불러오는 중...
+  </div>
   <div v-else-if="error" class="error">{{ error }}</div>
   <template v-else-if="summary">
-    <div class="subtitle">검증 기준일: {{ summary.as_of_date }}</div>
-    <div class="source-banner" :class="summary.is_demo ? 'demo' : 'upload'">
-      {{ summary.is_demo ? "더미데이터(체험용) 기준 결과" : `업로드한 파일 기준 결과 (job_id: ${summary.job_id})` }}
+    <div class="result-header">
+      <div class="result-header-left">
+        <div class="source-banner" :class="summary.is_demo ? 'demo' : 'upload'">
+          {{ summary.is_demo ? "더미데이터(체험용) 기준 결과" : `업로드한 파일 기준 결과 (job_id: ${summary.job_id})` }}
+        </div>
+        <div class="asof">검증 기준일 <strong>{{ summary.as_of_date }}</strong></div>
+      </div>
+      <button class="back-link" @click="$emit('reset')">← 다른 파일 업로드하기</button>
     </div>
-    <div class="back-link"><a href="#" @click.prevent="$emit('reset')">← 다른 파일 업로드하기</a></div>
 
     <SummaryCards :summary="summary" />
 
@@ -67,9 +73,27 @@ watchEffect(async () => {
     <section>
       <h2>다운로드</h2>
       <div class="downloads">
-        <a :href="downloadUrl(summary.job_id, 'xlsx')">엑셀 리포트 (.xlsx)</a>
-        <a :href="downloadUrl(summary.job_id, 'png')" class="secondary">요약 이미지 (.png)</a>
-        <a :href="downloadUrl(summary.job_id, 'eml')" class="secondary">이메일 초안 (.eml)</a>
+        <a :href="downloadUrl(summary.job_id, 'xlsx')" class="download-card primary">
+          <span class="dl-icon">📘</span>
+          <span class="dl-text">
+            <span class="dl-title">엑셀 리포트</span>
+            <span class="dl-sub">.xlsx</span>
+          </span>
+        </a>
+        <a :href="downloadUrl(summary.job_id, 'png')" class="download-card">
+          <span class="dl-icon">🖼️</span>
+          <span class="dl-text">
+            <span class="dl-title">요약 이미지</span>
+            <span class="dl-sub">.png</span>
+          </span>
+        </a>
+        <a :href="downloadUrl(summary.job_id, 'eml')" class="download-card">
+          <span class="dl-icon">✉️</span>
+          <span class="dl-text">
+            <span class="dl-title">이메일 초안</span>
+            <span class="dl-sub">.eml</span>
+          </span>
+        </a>
       </div>
       <div class="note">이메일 초안은 실제로 발송되지 않습니다. 다운로드 후 메일 클라이언트에서 직접 발송해야 합니다.</div>
     </section>
@@ -77,59 +101,127 @@ watchEffect(async () => {
 </template>
 
 <style scoped>
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 40px 0;
+}
+.loading-state .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.result-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .source-banner {
   display: inline-block;
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  margin-bottom: 16px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  width: fit-content;
 }
 .source-banner.demo {
-  background: #eef1f8;
-  color: var(--blue);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
 }
 .source-banner.upload {
   background: var(--green-bg);
   color: var(--green-text);
 }
-.back-link {
+.asof {
   font-size: 13px;
-  margin-bottom: 16px;
+  color: var(--ink-soft);
 }
-.back-link a {
+.back-link {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
   font-weight: 600;
-  text-decoration: none;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.back-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .downloads {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.downloads a {
-  display: inline-block;
-  padding: 10px 18px;
-  background: var(--blue);
-  color: #fff;
+.download-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   text-decoration: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  min-width: 180px;
 }
-.downloads a.secondary {
-  background: #6b7684;
+.download-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.download-card.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.dl-icon {
+  font-size: 20px;
+}
+.dl-text {
+  display: flex;
+  flex-direction: column;
+}
+.dl-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dl-sub {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.download-card.primary .dl-title,
+.download-card.primary .dl-sub {
+  color: #fff;
+}
+.download-card.primary .dl-sub {
+  opacity: 0.8;
 }
 .note {
   font-size: 12px;
-  color: #888;
-  margin-top: 8px;
-}
-.error {
-  background: #ffe9ea;
-  color: var(--red-text);
-  border: 1px solid #f3b8bb;
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 13px;
+  color: var(--ink-faint);
+  margin-top: 10px;
 }
 </style>

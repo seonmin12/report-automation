@@ -6,7 +6,7 @@ const STATUS_NEEDS_REVIEW = "확인필요"
 
 <template>
   <section>
-    <h2>사업자별 누적가입자</h2>
+    <h2>사업자별 누적가입자 <span class="count-pill">{{ operators.length }}</span></h2>
     <div class="table-scroll">
       <table>
         <thead>

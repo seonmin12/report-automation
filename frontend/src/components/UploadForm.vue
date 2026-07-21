@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue"
 import { validateFiles } from "../api.js"
+import FileDropzone from "./FileDropzone.vue"
 
 const emit = defineEmits(["validated", "view-demo"])
 
@@ -10,10 +11,6 @@ const mappingFile = ref(null)
 const asofDate = ref("2026-07-19")
 const loading = ref(false)
 const error = ref("")
-
-function onFileChange(target, event) {
-  target.value = event.target.files[0] ?? null
-}
 
 async function onSubmit() {
   if (!portalFile.value || !rawFile.value || !mappingFile.value) {
@@ -40,27 +37,38 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div v-if="error" class="error">{{ error }}</div>
+  <div v-if="error" class="error upload-error">{{ error }}</div>
 
-  <div class="card">
+  <div class="card upload-card">
     <form @submit.prevent="onSubmit">
-      <div class="field">
-        <label>포털 실적 파일 (.xlsx)</label>
-        <input type="file" accept=".xlsx" required @change="onFileChange(portalFile, $event)" />
+      <div class="fields-grid">
+        <FileDropzone
+          v-model="portalFile"
+          label="포털 실적 파일"
+          accept=".xlsx"
+          hint="xlsx 형식"
+        />
+        <FileDropzone
+          v-model="rawFile"
+          label="RAW 데이터 파일"
+          accept=".csv"
+          hint="csv 형식"
+        />
+        <FileDropzone
+          v-model="mappingFile"
+          label="매핑 기준표"
+          accept=".xlsx"
+          hint="xlsx 형식"
+        />
       </div>
-      <div class="field">
-        <label>RAW 데이터 파일 (.csv)</label>
-        <input type="file" accept=".csv" required @change="onFileChange(rawFile, $event)" />
+
+      <div class="field date-field">
+        <label>검증 기준일</label>
+        <input type="text" v-model="asofDate" placeholder="YYYY-MM-DD" />
       </div>
-      <div class="field">
-        <label>매핑 기준표 (.xlsx)</label>
-        <input type="file" accept=".xlsx" required @change="onFileChange(mappingFile, $event)" />
-      </div>
-      <div class="field">
-        <label>검증 기준일 (YYYY-MM-DD)</label>
-        <input type="text" v-model="asofDate" />
-      </div>
+
       <button type="submit" class="submit-btn" :disabled="loading">
+        <span v-if="loading" class="spinner"></span>
         {{ loading ? "검증 실행 중..." : "검증 실행" }}
       </button>
     </form>
@@ -68,7 +76,7 @@ async function onSubmit() {
 
   <div class="demo-link">
     올릴 파일이 없다면
-    <a href="#" @click.prevent="emit('view-demo')">더미데이터로 바로 체험하기</a>
+    <a href="#" @click.prevent="emit('view-demo')">더미데이터로 바로 체험하기 →</a>
   </div>
 
   <p class="note">
@@ -78,55 +86,82 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-.card {
-  max-width: 480px;
-  padding: 24px;
+.upload-card {
+  max-width: 620px;
+  padding: 28px;
 }
-.field {
+.upload-error {
+  max-width: 620px;
   margin-bottom: 16px;
+}
+.fields-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.date-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-width: 220px;
+  margin-bottom: 22px;
 }
-.field label {
+.date-field label {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
-.field input {
-  padding: 8px 10px;
+.date-field input {
+  padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
+  font-family: inherit;
+  background: var(--surface);
+}
+.date-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .submit-btn {
   width: 100%;
-  padding: 12px;
-  background: var(--blue);
+  padding: 13px;
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: 700;
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+.submit-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.error {
-  max-width: 480px;
-  background: #ffe9ea;
-  color: var(--red-text);
-  border: 1px solid #f3b8bb;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  white-space: pre-wrap;
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .demo-link {
-  max-width: 480px;
+  max-width: 620px;
   text-align: center;
   margin-top: 18px;
   font-size: 13px;
@@ -136,10 +171,15 @@ async function onSubmit() {
   text-decoration: none;
 }
 .note {
-  max-width: 480px;
+  max-width: 620px;
   font-size: 12px;
-  color: #888;
-  margin-top: 20px;
+  color: var(--ink-faint);
+  margin-top: 24px;
   line-height: 1.6;
+}
+.note code {
+  background: var(--surface-sunken);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 </style>
