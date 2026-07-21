@@ -88,12 +88,31 @@
     margin-top: 8px;
   }
   .table-scroll { overflow-x: auto; }
+  .source-banner {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .source-banner.demo { background: #eef1f8; color: var(--blue); }
+  .source-banner.upload { background: #e5f5e6; color: #1e7d24; }
+  .back-link { font-size: 13px; margin-bottom: 16px; }
+  .back-link a { color: var(--blue); text-decoration: none; font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>MVNO 실적 검증 대시보드</h1>
   <div class="subtitle">검증 기준일: {{ as_of_date }} · 모든 데이터는 100% 더미(가상)입니다</div>
+
+  {% if is_demo %}
+  <div class="source-banner demo">더미데이터(체험용) 기준 결과</div>
+  {% else %}
+  <div class="source-banner upload">업로드한 파일 기준 결과 (job_id: {{ job_id }})</div>
+  {% endif %}
+  <div class="back-link"><a href="/">← 다른 파일 업로드하기</a></div>
 
   <div class="cards">
     <div class="card">
@@ -188,9 +207,9 @@
   <section>
     <h2>다운로드</h2>
     <div class="downloads">
-      <a href="/download/xlsx">엑셀 리포트 (.xlsx)</a>
-      <a href="/download/png" class="secondary">요약 이미지 (.png)</a>
-      <a href="/download/eml" class="secondary">이메일 초안 (.eml)</a>
+      <a href="/download/{{ job_id }}/xlsx">엑셀 리포트 (.xlsx)</a>
+      <a href="/download/{{ job_id }}/png" class="secondary">요약 이미지 (.png)</a>
+      <a href="/download/{{ job_id }}/eml" class="secondary">이메일 초안 (.eml)</a>
     </div>
     <div class="note">이메일 초안은 실제로 발송되지 않습니다. 다운로드 후 메일 클라이언트에서 직접 발송해야 합니다.</div>
   </section>

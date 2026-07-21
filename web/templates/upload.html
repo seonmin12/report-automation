@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>MVNO 실적 검증 - 파일 업로드</title>
+<style>
+  :root { --blue: #4472C4; --border: #d9dce1; --bg: #f5f6f8; --red-text: #C00000; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg);
+    color: #1c1e21;
+    margin: 0;
+    padding: 32px;
+  }
+  .container { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #666; margin-bottom: 24px; line-height: 1.5; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .field { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 13px; font-weight: 600; color: #333; }
+  .field input[type="file"], .field input[type="text"] {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .hint { font-size: 12px; color: #888; }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .error {
+    background: #ffe9ea;
+    color: var(--red-text);
+    border: 1px solid #f3b8bb;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    white-space: pre-wrap;
+  }
+  .demo-link {
+    display: block;
+    text-align: center;
+    margin-top: 18px;
+    font-size: 13px;
+  }
+  .demo-link a { color: var(--blue); font-weight: 600; text-decoration: none; }
+  .note { font-size: 12px; color: #888; margin-top: 20px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>MVNO 실적 검증 대시보드</h1>
+  <p class="subtitle">
+    포털 실적, RAW 데이터, 매핑 기준표 3개 파일을 업로드하면 검증을 바로 실행합니다.
+    업로드된 파일은 서버 임시 디렉터리에서만 처리되며 DB에 저장하지 않습니다.
+    모든 예시 데이터는 100% 더미(가상)입니다.
+  </p>
+
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <div class="field">
+        <label>포털 실적 파일 (.xlsx)</label>
+        <input type="file" name="portal_file" accept=".xlsx" required>
+      </div>
+      <div class="field">
+        <label>RAW 데이터 파일 (.csv)</label>
+        <input type="file" name="raw_file" accept=".csv" required>
+      </div>
+      <div class="field">
+        <label>매핑 기준표 (.xlsx)</label>
+        <input type="file" name="mapping_file" accept=".xlsx" required>
+      </div>
+      <div class="field">
+        <label>검증 기준일 (YYYY-MM-DD)</label>
+        <input type="text" name="asof_date" value="{{ default_asof }}">
+      </div>
+      <button type="submit">검증 실행</button>
+    </form>
+  </div>
+
+  <div class="demo-link">
+    올릴 파일이 없다면 <a href="/demo">더미데이터로 바로 체험하기</a>
+  </div>
+
+  <p class="note">
+    각 파일의 필수 컬럼과 의미는 <code>docs/data_dictionary.md</code>,
+    검증 판단 기준은 <code>docs/validation_rules.md</code>를 참고하세요.
+  </p>
+</div>
+</body>
+</html>

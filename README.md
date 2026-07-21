@@ -30,6 +30,21 @@
 
 이상 항목은 빨간 배경으로 강조되며, 텍스트 요약과 PNG 이미지에도 같은 검증상태가 함께 표시됩니다.
 
+## Data Dictionary & Validation Rules
+
+자동화 로직이 입력 데이터를 일관되게 해석할 수 있도록, 입력 파일별 컬럼 의미와 검증 기준을
+문서로 분리해 관리합니다. 컬럼명이나 판단 기준이 바뀌면 코드와 함께 이 문서도 갱신합니다.
+
+- [`docs/data_dictionary.md`](docs/data_dictionary.md): 포털 실적/RAW/매핑 기준표 3개 파일의
+  컬럼명·업무 의미·예시값·필수 컬럼 정의
+- [`docs/validation_rules.md`](docs/validation_rules.md): 포털-RAW 대사 기준, 매핑 오류 4종
+  분류 기준, 사업자 단위 확인필요 판단 기준 정의
+
+웹 대시보드의 파일 업로드 검증도 이 문서의 필수 컬럼 목록(`web/app.py`의
+`REQUIRED_COLUMNS`)을 그대로 기준으로 삼습니다. 실적 공지 업무는 파일 형식과 검증 기준이
+고정된 반복 업무이므로, 데이터 정의와 검증 규칙을 먼저 문서화한 뒤 그 기준으로 로직을
+구현했습니다.
+
 ## 이메일 초안 자동 생성
 
 실무에서는 매번 같은 문구("안녕하십니까, OOO팀입니다. ~마감 실적 공유드립니다. 감사합니다.")로
@@ -41,27 +56,49 @@
 위험하고, 자동으로 실제 메일이 발송되는 것도 사람이 확인 없이는 위험한 동작이라 판단했습니다.
 웹 대시보드에도 발송 버튼은 없고, 다운로드까지만 지원합니다.
 
-## 웹 대시보드 (조회/다운로드 전용)
+## 웹 대시보드: 파일 업로드 기반 검증 실행
 
-CLI와 동일한 검증 파이프라인을 FastAPI로 감싸서, 브라우저에서 바로 결과를 확인하고
-xlsx/png/eml을 다운로드할 수 있게 했습니다. 데이터를 바꾸거나 메일을 발송하는 기능은 없는
+CLI와 동일한 검증 파이프라인을 FastAPI로 감싸서, 브라우저에서 직접 파일을 업로드하고 검증
+결과를 바로 확인할 수 있게 했습니다. 데이터를 영구 저장하거나 메일을 발송하는 기능은 없는
 읽기 전용(read-only) 서비스입니다.
 
 ```bash
 uvicorn web.app:app --reload   # http://localhost:8000
 ```
 
-| 라우트 | 내용 |
-|---|---|
-| `GET /` | 요약 카드 + 오류유형별 건수 + 사업자별 상태 + 오류상세 + 다운로드 버튼 |
-| `GET /api/summary` | 위 요약을 JSON으로 반환 |
-| `GET /download/{xlsx\|png\|eml}` | 각 산출물 파일 다운로드 |
-| `GET /health` | 헬스체크 |
+사용자는 [`docs/data_dictionary.md`](docs/data_dictionary.md)에 정의된 형식으로 3개 파일을
+업로드합니다.
 
-![웹 대시보드 스크린샷](docs/screenshots/web_dashboard.png)
+| 입력 파일 | 형식 | 설명 |
+|---|---|---|
+| 포털 실적 파일 | `.xlsx` | 사업자/상품 단위 월간 실적 |
+| RAW 데이터 파일 | `.csv` | 신규/해지 거래 원천 데이터 |
+| 매핑 기준표 | `.xlsx` | 요금제/상품-사업자 매핑 마스터 |
+
+업로드된 파일은 서버 임시 디렉터리에서만 열어서 검증 파이프라인에 전달하고, DB에는 저장하지
+않습니다. 필수 컬럼이 없으면 검증을 실행하지 않고 어떤 컬럼이 빠졌는지 바로 알려줍니다.
+
+| 라우트 | 메서드 | 내용 |
+|---|---|---|
+| `/` | GET | 파일 업로드 화면 |
+| `/upload` | POST | 3개 파일 업로드 → 검증 실행 → 결과 화면(HTML) 반환 |
+| `/demo` | GET | 더미데이터로 미리 채워진 결과 화면 (체험용) |
+| `/jobs/{job_id}` | GET | 특정 업로드 건의 결과 화면 재조회 |
+| `/api/validate` | POST | 업로드 → 검증 실행 → 요약 JSON 반환 (job_id 포함) |
+| `/api/summary/{job_id}` | GET | 검증 요약 JSON |
+| `/api/errors/{job_id}` | GET | 오류상세 JSON |
+| `/download/{job_id}/{xlsx\|png\|eml}` | GET | 해당 건의 산출물 다운로드 |
+| `/health` | GET | 헬스체크 |
+
+업로드 화면과 결과 화면:
+
+![업로드 화면](docs/screenshots/upload_page.png)
+
+![웹 대시보드 결과 화면](docs/screenshots/web_dashboard.png)
 
 Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `vercel.json`으로 구성되어 있으며,
-`@vercel/python` 런타임을 사용합니다.
+`@vercel/python` 런타임을 사용합니다. 서버리스 환경에서는 job이 프로세스 메모리에만 유지되므로,
+콜드 스타트가 나면 이전 업로드 결과가 사라질 수 있습니다 (DB 없이 임시 처리하는 구조의 트레이드오프).
 
 ## TODO (진행 중)
 
@@ -76,7 +113,9 @@ Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `ve
 - [x] 테스트 작성
 - [x] 실행 결과 스크린샷 및 최종 설명 추가
 - [x] 실적 요약 이메일 초안(.eml) 자동 생성
-- [x] 웹서비스화 1차: FastAPI 조회/다운로드 대시보드 + Vercel 배포 설정
+- [x] Data Dictionary / Validation Rules 문서화
+- [x] 웹서비스화 1차: FastAPI 파일 업로드 기반 검증 실행 + 조회/다운로드 대시보드
+- [ ] 실제 Vercel 배포 (현재는 배포 설정만 되어 있고 라이브 링크는 없음)
 - [ ] 웹서비스화 2차: 발송 버튼 UI + 실제 메일 발송 연동 (보안 검토 후 진행 예정)
 
 ## 기술 스택
@@ -86,7 +125,7 @@ Vercel 배포는 `api/index.py`(FastAPI 앱을 재노출하는 진입점)와 `ve
 - openpyxl (Excel 리포트 생성 및 스타일링)
 - matplotlib / Pillow (요약 이미지 생성)
 - pytest (검증 로직 테스트)
-- FastAPI + Jinja2 + Vercel (조회/다운로드 웹 대시보드)
+- FastAPI + Jinja2 + Vercel (파일 업로드 기반 검증 실행 웹 대시보드)
 
 ## 폴더 구조
 
@@ -101,6 +140,8 @@ mvno-report-automation/
 │   ├── raw/          # RAW 데이터 CSV 더미
 │   └── mapping/       # 요금제/상품 매핑 기준표 Excel 더미
 ├── docs/
+│   ├── data_dictionary.md
+│   ├── validation_rules.md
 │   └── screenshots/   # README에 넣는 실행 결과 캡처본
 ├── src/
 │   ├── generate_dummy_data.py
@@ -112,8 +153,9 @@ mvno-report-automation/
 │   ├── image_builder.py
 │   └── email_writer.py
 ├── web/
-│   ├── app.py            # FastAPI 조회/다운로드 대시보드
+│   ├── app.py            # FastAPI 업로드/검증/조회/다운로드 대시보드
 │   └── templates/
+│       ├── upload.html
 │       └── dashboard.html
 ├── api/
 │   └── index.py          # Vercel 배포 진입점 (web/app.py 재노출)
@@ -210,3 +252,7 @@ python -m pytest tests/ -v                           # 검증 로직 테스트
   의도적으로 범위에서 제외 (보안/오발송 리스크를 고려한 설계 판단)
 - CLI로 검증한 파이프라인을 FastAPI로 그대로 감싸 웹 대시보드화. 새 로직을 추가하지 않고 기존
   src 모듈을 재사용해서, 같은 검증 결과를 CLI·웹 두 진입점에서 일관되게 제공
+- 입력 파일의 컬럼 의미와 검증 기준을 Data Dictionary / Validation Rules로 먼저 문서화하고,
+  그 기준으로 업로드 검증(필수 컬럼 체크)과 검증 로직을 구현 — 문서와 코드가 어긋나지 않도록 설계
+- 사용자가 직접 파일을 업로드해 검증을 실행하는 구조로 확장하되, DB 없이 서버 임시 디렉터리에서만
+  처리해서 민감 데이터가 영구 저장되지 않도록 설계
