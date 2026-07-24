@@ -3,6 +3,9 @@
 > ⚠️ 본 프로젝트는 포트폴리오 목적으로 제작되었으며, 모든 데이터는 100% 더미(가상)입니다.
 > 실제 회사명, 파트너명, 상품명, 컬럼명을 사용하지 않았습니다.
 
+🔗 **라이브 데모**: [report-automation-dun.vercel.app](https://report-automation-dun.vercel.app)
+(더미데이터로 바로 체험 가능, 업로드 파일은 서버에 저장되지 않습니다)
+
 ## 배경
 
 통신사 MVNO 사업 운영 환경에서 발생할 수 있는 반복적인 실적 검증 업무를 가상의 시나리오로
@@ -131,8 +134,10 @@ Vercel 배포는 `vercel.json`에서 두 빌드를 함께 구성합니다: `api/
 - [x] 실적 요약 이메일 초안(.eml) 자동 생성
 - [x] Data Dictionary / Validation Rules 문서화
 - [x] 웹서비스화 1차: FastAPI 파일 업로드 검증 API + Vue 3 프론트엔드
-- [ ] 실제 Vercel 배포 (현재는 배포 설정만 되어 있고 라이브 링크는 없음)
-- [ ] 웹서비스화 2차: 발송 버튼 UI + 실제 메일 발송 연동 (보안 검토 후 진행 예정)
+- [x] 실제 Vercel 배포: [report-automation-dun.vercel.app](https://report-automation-dun.vercel.app)
+- [x] 메일 작성 버튼: `mailto:` 링크로 제목/본문을 채운 메일 앱 창 열기 (첨부는 수동)
+- [ ] 웹서비스화 2차: Gmail API 실제 발송/첨부 자동화 (OAuth 동의화면·앱 검증·토큰 저장이
+      필요해 로그인/DB 없는 현재 구조와 맞지 않아 보류. 계정 시스템을 새로 설계할 때 재검토)
 
 ## 기술 스택
 
