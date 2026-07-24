@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect } from "vue"
+import { ref, computed, watchEffect } from "vue"
 import { getSummary, getErrors, downloadUrl } from "../api.js"
 import SummaryCards from "./SummaryCards.vue"
 import OperatorTable from "./OperatorTable.vue"
@@ -12,6 +12,18 @@ const summary = ref(null)
 const errors = ref([])
 const loading = ref(true)
 const error = ref("")
+
+// email_writer.py의 제목/인사말/맺음말 문구를 그대로 맞춰서, 메일 앱에서 열었을 때
+// 다운로드되는 .eml 초안과 동일한 제목/본문이 보이도록 한다.
+const mailtoHref = computed(() => {
+  if (!summary.value) return ""
+  const [year, month, day] = summary.value.as_of_date.split("-").map(Number)
+  const subject = `[MVNO 전략팀] ${month}월 ${day}일 마감 실적 공유드립니다`
+  const body =
+    `안녕하십니까, MVNO 전략팀입니다.\n\n${summary.value.text_summary}\n\n` +
+    `(첨부파일은 자동으로 붙지 않습니다. 위 엑셀 리포트·요약 이미지를 다운로드해 직접 첨부해주세요.)\n\n감사합니다.`
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+})
 
 watchEffect(async () => {
   loading.value = true
@@ -94,8 +106,18 @@ watchEffect(async () => {
             <span class="dl-sub">.eml</span>
           </span>
         </a>
+        <a :href="mailtoHref" class="download-card">
+          <span class="dl-icon">📝</span>
+          <span class="dl-text">
+            <span class="dl-title">메일 작성하기</span>
+            <span class="dl-sub">메일 앱으로 열기</span>
+          </span>
+        </a>
       </div>
-      <div class="note">이메일 초안은 실제로 발송되지 않습니다. 다운로드 후 메일 클라이언트에서 직접 발송해야 합니다.</div>
+      <div class="note">
+        메일은 실제로 발송되지 않습니다. "메일 작성하기"는 제목/본문만 채워진 메일 앱 창을 열어주며,
+        첨부파일은 자동으로 붙지 않으니 위 엑셀/이미지를 받아 직접 첨부해주세요.
+      </div>
     </section>
   </template>
 </template>

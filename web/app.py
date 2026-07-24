@@ -226,6 +226,7 @@ def _summary_payload(job_id: str, result: dict) -> dict:
         "total_issue_count": len(error_detail_df),
         "issue_type_counts": issue_type_counts,
         "operators": result["operator_summary_df"].to_dict(orient="records"),
+        "text_summary": result["text_summary"],
     }
 
 
