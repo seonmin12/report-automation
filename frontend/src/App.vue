@@ -34,14 +34,16 @@ function reset() {
 
   <main class="page">
     <template v-if="!currentJobId">
-      <div class="hero">
-        <h1>MVNO 실적 검증 대시보드</h1>
-        <p class="subtitle">
-          포털 실적 · RAW 데이터 · 매핑 기준표를 업로드하면 검증을 바로 실행합니다.
-          모든 데이터는 100% 더미(가상)이며, 업로드 파일은 서버 임시 디렉터리에서만 처리되고 DB에 저장하지 않습니다.
-        </p>
+      <div class="upload-view">
+        <div class="hero">
+          <h1>MVNO 실적 검증 대시보드</h1>
+          <p class="subtitle">
+            포털 실적 · RAW 데이터 · 매핑 기준표를 업로드하면 검증을 바로 실행합니다.
+            모든 데이터는 100% 더미(가상)이며, 업로드 파일은 서버 임시 디렉터리에서만 처리되고 DB에 저장하지 않습니다.
+          </p>
+        </div>
+        <UploadForm @validated="showJob" @view-demo="showJob('demo')" />
       </div>
-      <UploadForm @validated="showJob" @view-demo="showJob('demo')" />
     </template>
     <Dashboard v-else :job-id="currentJobId" @reset="reset" />
   </main>
@@ -114,6 +116,11 @@ function reset() {
   min-height: calc(100vh - 200px);
 }
 
+.upload-view {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
 .hero {
   margin-bottom: 28px;
 }
@@ -124,7 +131,6 @@ function reset() {
 }
 
 .hero .subtitle {
-  max-width: 640px;
   font-size: 14px;
 }
 

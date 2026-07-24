@@ -19,16 +19,15 @@ from matplotlib import font_manager  # noqa: E402
 
 from config import COL_VALIDATION_STATUS, STATUS_NEEDS_REVIEW
 
-# 한글이 네모(tofu)로 깨지지 않도록, 시스템에 설치된 한글 폰트를 우선 사용
-_KOREAN_FONT_CANDIDATES = ["AppleGothic", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"]
+# 시스템에 설치된 한글 폰트 이름에 의존하면 Vercel 서버리스(Linux, 한글 폰트 미설치) 환경에서
+# 한글이 네모(tofu)로 깨진다. OS와 무관하게 항상 동작하도록 폰트 파일을 리포에 직접 번들해서 쓴다.
+_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NanumGothic-Regular.ttf"
 
 
 def _apply_korean_font():
-    available = {f.name for f in font_manager.fontManager.ttflist}
-    for name in _KOREAN_FONT_CANDIDATES:
-        if name in available:
-            plt.rcParams["font.family"] = name
-            break
+    font_manager.fontManager.addfont(str(_FONT_PATH))
+    font_name = font_manager.FontProperties(fname=str(_FONT_PATH)).get_name()
+    plt.rcParams["font.family"] = font_name
     plt.rcParams["axes.unicode_minus"] = False
 
 
