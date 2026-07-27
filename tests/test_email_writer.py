@@ -20,7 +20,7 @@ def test_build_email_draft_sets_subject_and_body(tmp_path):
         attachment_paths=[attachment],
     )
 
-    assert msg["Subject"] == "[MVNO 전략팀] 7월 19일 마감 실적 공유드립니다"
+    assert msg["Subject"] == "[MVNO 운영팀] 7월 19일 마감 실적 공유드립니다"
     body = msg.get_body(preferencelist=("plain",)).get_content()
     assert email_writer.EMAIL_GREETING in body
     assert "- 실적 비교: 이상 0건" in body

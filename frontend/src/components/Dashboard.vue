@@ -18,9 +18,9 @@ const error = ref("")
 const mailtoHref = computed(() => {
   if (!summary.value) return ""
   const [year, month, day] = summary.value.as_of_date.split("-").map(Number)
-  const subject = `[MVNO 전략팀] ${month}월 ${day}일 마감 실적 공유드립니다`
+  const subject = `[MVNO 운영팀] ${month}월 ${day}일 마감 실적 공유드립니다`
   const body =
-    `안녕하십니까, MVNO 전략팀입니다.\n\n${summary.value.text_summary}\n\n` +
+    `안녕하십니까, MVNO 운영팀입니다.\n\n${summary.value.text_summary}\n\n` +
     `(첨부파일은 자동으로 붙지 않습니다. 위 엑셀 리포트·요약 이미지를 다운로드해 직접 첨부해주세요.)\n\n감사합니다.`
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 })

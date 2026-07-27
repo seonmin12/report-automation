@@ -1,7 +1,7 @@
 """
 실적 검증 결과 공유 이메일 초안(.eml) 생성 모듈.
 
-사내에서 매번 같은 문구로 반복 발송하던 실적 공유 메일("안녕하십니까 MVNO 전략팀입니다.
+사내에서 매번 같은 문구로 반복 발송하던 실적 공유 메일("안녕하십니까 MVNO 운영팀입니다.
 ...마감 실적 공유드립니다. 감사합니다.")을 재현한다. 사내 메일 서버 인증정보를 다루거나
 실제로 메일을 발송하는 것은 보안상 이 스크립트의 범위 밖이며, 제목/본문/첨부까지 채워진
 .eml 파일만 만든다. 메일 클라이언트(Outlook, Mail 등)에서 더블클릭으로 열어 '보내기'만
@@ -13,8 +13,8 @@ from email.message import EmailMessage
 from email.utils import formatdate
 from pathlib import Path
 
-EMAIL_SUBJECT_TEMPLATE = "[MVNO 전략팀] {month}월 {day}일 마감 실적 공유드립니다"
-EMAIL_GREETING = "안녕하십니까, MVNO 전략팀입니다."
+EMAIL_SUBJECT_TEMPLATE = "[MVNO 운영팀] {month}월 {day}일 마감 실적 공유드립니다"
+EMAIL_GREETING = "안녕하십니까, MVNO 운영팀입니다."
 EMAIL_CLOSING = "감사합니다."
 
 # 실제 수신자가 아닌 예시 주소. 실사용 시 담당자 주소로 교체해서 쓴다.
