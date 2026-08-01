@@ -1,0 +1,232 @@
+{
+  "meta": {
+    "run_at": "2026-08-01T21:15:11",
+    "seed": 42,
+    "asof": "2026-07-19",
+    "timeout_sec": 600,
+    "scales": [
+      10000,
+      50000,
+      100000,
+      200000,
+      300000
+    ]
+  },
+  "results": [
+    {
+      "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/10000",
+      "phases": {
+        "파일로드": 0.0475,
+        "merge": 0.0683,
+        "검증": 0.0143,
+        "리포트생성": 0.3792,
+        "총합": 0.5093
+      },
+      "sub_phases": {
+        "load_portal": 0.0158,
+        "load_raw": 0.0152,
+        "load_mapping": 0.0165,
+        "filter_current_month": 0.007,
+        "aggregate_by_operator_product": 0.0249,
+        "aggregate_by_operator": 0.0258,
+        "compare_portal_vs_raw": 0.0107,
+        "check_missing_mapping": 0.0034,
+        "check_duplicate_mapping": 0.0006,
+        "check_inactive_product_usage": 0.0026,
+        "check_name_mismatch": 0.0071,
+        "attach_validation_status": 0.0006,
+        "build_excel_report": 0.082,
+        "build_text_summary": 0.0026,
+        "build_summary_image": 0.2877,
+        "build_email_draft": 0.0068
+      },
+      "status": "success",
+      "failure": null,
+      "row_counts": {
+        "raw": 10000,
+        "portal": 89,
+        "mapping": 88,
+        "compare_combos": 92,
+        "error_detail": 31
+      },
+      "memory": {
+        "tracemalloc_peak_mb": 6.36,
+        "rss_peak_mb": 139.88
+      },
+      "rows": 10000,
+      "wall_seconds": 0.96
+    },
+    {
+      "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/50000",
+      "phases": {
+        "파일로드": 0.107,
+        "merge": 0.1295,
+        "검증": 0.0245,
+        "리포트생성": 0.4364,
+        "총합": 0.6974
+      },
+      "sub_phases": {
+        "load_portal": 0.0249,
+        "load_raw": 0.0512,
+        "load_mapping": 0.0309,
+        "filter_current_month": 0.0242,
+        "aggregate_by_operator_product": 0.0484,
+        "aggregate_by_operator": 0.0481,
+        "compare_portal_vs_raw": 0.0088,
+        "check_missing_mapping": 0.0035,
+        "check_duplicate_mapping": 0.0006,
+        "check_inactive_product_usage": 0.0038,
+        "check_name_mismatch": 0.0159,
+        "attach_validation_status": 0.0007,
+        "build_excel_report": 0.1432,
+        "build_text_summary": 0.004,
+        "build_summary_image": 0.2831,
+        "build_email_draft": 0.0061
+      },
+      "status": "success",
+      "failure": null,
+      "row_counts": {
+        "raw": 50000,
+        "portal": 200,
+        "mapping": 196,
+        "compare_combos": 205,
+        "error_detail": 62
+      },
+      "memory": {
+        "tracemalloc_peak_mb": 17.85,
+        "rss_peak_mb": 181.61
+      },
+      "rows": 50000,
+      "wall_seconds": 1.1
+    },
+    {
+      "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/100000",
+      "phases": {
+        "파일로드": 0.2208,
+        "merge": 0.2014,
+        "검증": 0.0386,
+        "리포트생성": 0.5771,
+        "총합": 1.0379
+      },
+      "sub_phases": {
+        "load_portal": 0.0328,
+        "load_raw": 0.1076,
+        "load_mapping": 0.0804,
+        "filter_current_month": 0.0461,
+        "aggregate_by_operator_product": 0.0734,
+        "aggregate_by_operator": 0.0727,
+        "compare_portal_vs_raw": 0.0091,
+        "check_missing_mapping": 0.0041,
+        "check_duplicate_mapping": 0.0007,
+        "check_inactive_product_usage": 0.0056,
+        "check_name_mismatch": 0.0273,
+        "attach_validation_status": 0.0008,
+        "build_excel_report": 0.2503,
+        "build_text_summary": 0.0066,
+        "build_summary_image": 0.3134,
+        "build_email_draft": 0.0067
+      },
+      "status": "success",
+      "failure": null,
+      "row_counts": {
+        "raw": 100000,
+        "portal": 288,
+        "mapping": 280,
+        "compare_combos": 298,
+        "error_detail": 125
+      },
+      "memory": {
+        "tracemalloc_peak_mb": 35.28,
+        "rss_peak_mb": 214.2
+      },
+      "rows": 100000,
+      "wall_seconds": 1.5
+    },
+    {
+      "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/200000",
+      "phases": {
+        "파일로드": 0.3353,
+        "merge": 0.3301,
+        "검증": 0.0669,
+        "리포트생성": 0.7168,
+        "총합": 1.4491
+      },
+      "sub_phases": {
+        "load_portal": 0.0468,
+        "load_raw": 0.233,
+        "load_mapping": 0.0554,
+        "filter_current_month": 0.0957,
+        "aggregate_by_operator_product": 0.1121,
+        "aggregate_by_operator": 0.1126,
+        "compare_portal_vs_raw": 0.0097,
+        "check_missing_mapping": 0.0083,
+        "check_duplicate_mapping": 0.0007,
+        "check_inactive_product_usage": 0.006,
+        "check_name_mismatch": 0.0512,
+        "attach_validation_status": 0.0007,
+        "build_excel_report": 0.3896,
+        "build_text_summary": 0.0105,
+        "build_summary_image": 0.309,
+        "build_email_draft": 0.0077
+      },
+      "status": "success",
+      "failure": null,
+      "row_counts": {
+        "raw": 200000,
+        "portal": 419,
+        "mapping": 404,
+        "compare_combos": 439,
+        "error_detail": 253
+      },
+      "memory": {
+        "tracemalloc_peak_mb": 70.11,
+        "rss_peak_mb": 297.38
+      },
+      "rows": 200000,
+      "wall_seconds": 1.97
+    },
+    {
+      "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/300000",
+      "phases": {
+        "파일로드": 0.4868,
+        "merge": 0.5143,
+        "검증": 0.1019,
+        "리포트생성": 0.8813,
+        "총합": 1.9843
+      },
+      "sub_phases": {
+        "load_portal": 0.0592,
+        "load_raw": 0.3473,
+        "load_mapping": 0.0802,
+        "filter_current_month": 0.1578,
+        "aggregate_by_operator_product": 0.1831,
+        "aggregate_by_operator": 0.1628,
+        "compare_portal_vs_raw": 0.0105,
+        "check_missing_mapping": 0.0106,
+        "check_duplicate_mapping": 0.0008,
+        "check_inactive_product_usage": 0.0108,
+        "check_name_mismatch": 0.0789,
+        "attach_validation_status": 0.0008,
+        "build_excel_report": 0.5468,
+        "build_text_summary": 0.0148,
+        "build_summary_image": 0.3123,
+        "build_email_draft": 0.0074
+      },
+      "status": "success",
+      "failure": null,
+      "row_counts": {
+        "raw": 300000,
+        "portal": 525,
+        "mapping": 502,
+        "compare_combos": 555,
+        "error_detail": 379
+      },
+      "memory": {
+        "tracemalloc_peak_mb": 105.22,
+        "rss_peak_mb": 353.61
+      },
+      "rows": 300000,
+      "wall_seconds": 2.55
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+[
+  {
+    "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/10000",
+    "rows": 10000,
+    "breakdown": {
+      "매핑누락": {
+        "expected_count": 4,
+        "detected_count": 4,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "중복": {
+        "expected_count": 3,
+        "detected_count": 3,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "비활성사용": {
+        "expected_count": 6,
+        "detected_count": 6,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "명칭불일치": {
+        "expected_count": 4,
+        "detected_count": 4,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "실적비교": {
+        "expected_count": 11,
+        "detected_count": 11,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      }
+    },
+    "total_missing": 0,
+    "total_false_positive": 0,
+    "passed": true
+  },
+  {
+    "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/50000",
+    "rows": 50000,
+    "breakdown": {
+      "매핑누락": {
+        "expected_count": 10,
+        "detected_count": 10,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "중복": {
+        "expected_count": 6,
+        "detected_count": 6,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "비활성사용": {
+        "expected_count": 12,
+        "detected_count": 12,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "명칭불일치": {
+        "expected_count": 8,
+        "detected_count": 8,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "실적비교": {
+        "expected_count": 20,
+        "detected_count": 20,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      }
+    },
+    "total_missing": 0,
+    "total_false_positive": 0,
+    "passed": true
+  },
+  {
+    "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/100000",
+    "rows": 100000,
+    "breakdown": {
+      "매핑누락": {
+        "expected_count": 20,
+        "detected_count": 20,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "중복": {
+        "expected_count": 12,
+        "detected_count": 12,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "비활성사용": {
+        "expected_count": 25,
+        "detected_count": 25,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "명칭불일치": {
+        "expected_count": 16,
+        "detected_count": 16,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "실적비교": {
+        "expected_count": 40,
+        "detected_count": 40,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      }
+    },
+    "total_missing": 0,
+    "total_false_positive": 0,
+    "passed": true
+  },
+  {
+    "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/200000",
+    "rows": 200000,
+    "breakdown": {
+      "매핑누락": {
+        "expected_count": 40,
+        "detected_count": 40,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "중복": {
+        "expected_count": 25,
+        "detected_count": 25,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "비활성사용": {
+        "expected_count": 50,
+        "detected_count": 50,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "명칭불일치": {
+        "expected_count": 33,
+        "detected_count": 33,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "실적비교": {
+        "expected_count": 80,
+        "detected_count": 80,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      }
+    },
+    "total_missing": 0,
+    "total_false_positive": 0,
+    "passed": true
+  },
+  {
+    "data_dir": "/Users/gimseonmin/Desktop/mvno-report-automation/benchmark/data/300000",
+    "rows": 300000,
+    "breakdown": {
+      "매핑누락": {
+        "expected_count": 60,
+        "detected_count": 60,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "중복": {
+        "expected_count": 37,
+        "detected_count": 37,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "비활성사용": {
+        "expected_count": 75,
+        "detected_count": 75,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "명칭불일치": {
+        "expected_count": 50,
+        "detected_count": 50,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      },
+      "실적비교": {
+        "expected_count": 120,
+        "detected_count": 120,
+        "missing_count": 0,
+        "false_positive_count": 0,
+        "missing": [],
+        "false_positive": []
+      }
+    },
+    "total_missing": 0,
+    "total_false_positive": 0,
+    "passed": true
+  }
+]
