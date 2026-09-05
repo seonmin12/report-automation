@@ -90,13 +90,14 @@ def build_prompt(ctx: dict) -> str:
     error_rows = ctx["error_detail_df"].to_string(index=False) if not ctx["error_detail_df"].empty else "(없음)"
 
     return f"""당신은 MVNO 사업 운영팀의 데이터 분석가입니다. 아래는 {ctx['as_of_date']:%Y-%m-%d} 기준
-실적 검증 파이프라인이 계산한 결과입니다. 이 내용을 팀장에게 보고하는 것처럼, 자연스러운
-한국어 비즈니스 문체로 5~7문장짜리 요약을 작성해주세요.
+실적 검증 파이프라인이 계산한 결과입니다. 팀장에게 보고하는 것처럼 이 결과를 구조화해서
+정리해주세요.
 
-- 기계적인 항목 나열이 아니라, 어떤 사업자/이슈가 특히 주의가 필요한지 자연스럽게 짚어주세요.
-- 구체적인 사업자명과 숫자를 인용해 근거를 보여주세요.
+- 가장 주의가 필요한 이슈 3~6개만 골라주세요 (오류상세 표 전체를 다 나열하지 마세요).
+- 각 이슈는 구체적인 사업자명·상품코드·숫자를 근거로 드세요.
+- 심각도(severity)는 차이율 크기, 건수, 중복 여부 등을 종합적으로 고려해 판단하세요.
 - 과장하지 말고, 데이터에 있는 사실만 이야기하세요.
-- 마지막 문장은 다음 담당자가 무엇을 확인하면 좋을지 짧은 제안으로 마무리하세요.
+- recommended_actions는 다음 담당자가 바로 확인할 수 있는 구체적인 행동으로 2~4개 적어주세요.
 
 [규칙 기반 요약]
 {ctx['text_summary']}
@@ -107,6 +108,39 @@ def build_prompt(ctx: dict) -> str:
 [오류상세 표]
 {error_rows}
 """
+
+
+SUMMARY_TOOL = {
+    "name": "submit_summary",
+    "description": "실적 검증 결과를 구조화된 형태로 제출한다.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "headline": {"type": "string", "description": "5~12단어 이내의 짧은 제목 (예: '스마트모빌C·프리텔F 데이터 정합성 점검 시급')"},
+            "overview": {"type": "string", "description": "전체 상황을 1~2문장으로 요약"},
+            "risks": {
+                "type": "array",
+                "description": "가장 주의가 필요한 이슈 3~6개",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "operator": {"type": "string", "description": "사업자명"},
+                        "severity": {"type": "string", "enum": ["high", "medium", "low"]},
+                        "issue": {"type": "string", "description": "이슈를 한 줄로 설명하는 제목"},
+                        "detail": {"type": "string", "description": "구체적 근거 (상품코드·수치 포함), 1~2문장"},
+                    },
+                    "required": ["operator", "severity", "issue", "detail"],
+                },
+            },
+            "recommended_actions": {
+                "type": "array",
+                "description": "다음 담당자가 확인할 구체적인 행동 2~4개",
+                "items": {"type": "string"},
+            },
+        },
+        "required": ["headline", "overview", "risks", "recommended_actions"],
+    },
+}
 
 
 def main():
@@ -122,16 +156,19 @@ def main():
     client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수를 자동으로 읽음
     response = client.messages.create(
         model=MODEL,
-        max_tokens=1200,  # 한글 5~7문장이 토큰을 예상보다 많이 먹어서, 첫 시도(600)에서 문장 중간에 잘렸었음
+        max_tokens=1500,
+        tools=[SUMMARY_TOOL],
+        tool_choice={"type": "tool", "name": "submit_summary"},
         messages=[{"role": "user", "content": prompt}],
     )
-    summary_text = "".join(block.text for block in response.content if block.type == "text").strip()
+    tool_use_block = next(block for block in response.content if block.type == "tool_use")
+    structured = tool_use_block.input
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(
         json.dumps(
             {
-                "summary": summary_text,
+                **structured,
                 "model": MODEL,
                 "generated_at": datetime.now().isoformat(timespec="seconds"),
                 "as_of_date": ctx["as_of_date"].isoformat(),
@@ -143,7 +180,7 @@ def main():
     )
     print(f"저장 완료: {OUTPUT_PATH}")
     print()
-    print(summary_text)
+    print(json.dumps(structured, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
