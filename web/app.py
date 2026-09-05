@@ -8,6 +8,7 @@ CLI(main.py)가 만드는 것과 동일한 검증 파이프라인을 웹에서 �
 실제 이메일 발송이나 원본 데이터의 영구 저장은 하지 않는다.
 """
 
+import json
 import tempfile
 import uuid
 from contextlib import asynccontextmanager
@@ -57,6 +58,21 @@ app.add_middleware(
 # 유지되는 단순 인메모리 job 저장소. DB는 의도적으로 쓰지 않는다 (docs/validation_rules.md 참고).
 DEMO_JOB_ID = "demo"
 _jobs: dict = {}
+
+# 데모 job 전용 AI 요약. scripts/generate_demo_ai_summary.py로 미리(로컬에서, 실제
+# API 키로) 한 번 생성해 둔 정적 파일을 읽기만 한다 — 요청이 들어올 때 LLM API를
+# 호출하지 않는다. 인증 없는 공개 데모라 라이브로 열면 방문자가 버튼을 누를 때마다
+# 과금되고, 어차피 데모 데이터는 고정 시드라 매번 새로 생성해도 내용이 똑같기
+# 때문이다. 업로드한 파일(실제 사용자 데이터)에는 이 기능 자체를 제공하지 않는다.
+_DEMO_AI_SUMMARY_PATH = Path(__file__).parent / "static_data" / "demo_ai_summary.json"
+_demo_ai_summary_cache: dict | None = None
+
+
+def _load_demo_ai_summary() -> dict | None:
+    global _demo_ai_summary_cache
+    if _demo_ai_summary_cache is None and _DEMO_AI_SUMMARY_PATH.exists():
+        _demo_ai_summary_cache = json.loads(_DEMO_AI_SUMMARY_PATH.read_text(encoding="utf-8"))
+    return _demo_ai_summary_cache
 
 _DOWNLOAD_FILES = {
     "xlsx": (
@@ -258,6 +274,22 @@ def api_errors(job_id: str):
     return JSONResponse(
         {"job_id": job_id, "errors": result["error_detail_df"].to_dict(orient="records")}
     )
+
+
+@app.get("/api/ai-summary/{job_id}")
+def api_ai_summary(job_id: str):
+    if job_id != DEMO_JOB_ID:
+        raise HTTPException(
+            status_code=404,
+            detail="AI 요약은 데모 결과에서만 제공됩니다 (업로드한 실제 데이터는 라이브 API 호출 비용 문제로 지원하지 않음).",
+        )
+    data = _load_demo_ai_summary()
+    if data is None:
+        raise HTTPException(
+            status_code=404,
+            detail="AI 요약이 아직 생성되지 않았습니다 (scripts/generate_demo_ai_summary.py 실행 필요).",
+        )
+    return JSONResponse(data)
 
 
 @app.get("/download/{job_id}/{file_type}")

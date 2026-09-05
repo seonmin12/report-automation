@@ -5,11 +5,13 @@ web/app.py (FastAPI 파일 업로드 검증 JSON API) 테스트.
 프론트엔드(frontend/, Vue)는 별도이므로 여기서는 API 응답만 검증한다.
 """
 
+import json
 from io import BytesIO
 
 import pandas as pd
 from fastapi.testclient import TestClient
 
+import web.app as web_app
 from config import (
     COL_CHURN_COUNT,
     COL_MAPPING_DATE,
@@ -146,3 +148,36 @@ def test_download_demo_xlsx_returns_file():
 def test_download_unknown_type_returns_404():
     response = client.get("/download/demo/pdf")
     assert response.status_code == 404
+
+
+def test_ai_summary_non_demo_job_returns_404():
+    response = client.get("/api/ai-summary/some-upload-job-id")
+    assert response.status_code == 404
+    assert "데모" in response.json()["detail"]
+
+
+def test_ai_summary_demo_not_generated_returns_404(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "_DEMO_AI_SUMMARY_PATH", tmp_path / "missing.json")
+    monkeypatch.setattr(web_app, "_demo_ai_summary_cache", None)
+
+    response = client.get("/api/ai-summary/demo")
+
+    assert response.status_code == 404
+    assert "생성되지 않았습니다" in response.json()["detail"]
+
+
+def test_ai_summary_demo_returns_cached_summary(monkeypatch, tmp_path):
+    fake_path = tmp_path / "demo_ai_summary.json"
+    fake_path.write_text(
+        json.dumps({"summary": "테스트 요약입니다.", "model": "claude-sonnet-5", "generated_at": "2026-01-01T00:00:00"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "_DEMO_AI_SUMMARY_PATH", fake_path)
+    monkeypatch.setattr(web_app, "_demo_ai_summary_cache", None)
+
+    response = client.get("/api/ai-summary/demo")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"] == "테스트 요약입니다."
+    assert body["model"] == "claude-sonnet-5"

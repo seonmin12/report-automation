@@ -71,6 +71,26 @@
 위험하고, 자동으로 실제 메일이 발송되는 것도 사람이 확인 없이는 위험한 동작이라 판단했습니다.
 웹 대시보드에도 발송 버튼은 없고, 다운로드까지만 지원합니다.
 
+## AI 요약 (데모 전용)
+
+결과 화면에 "AI 요약 보기" 버튼이 있습니다. 규칙 기반 텍스트 요약(`summary_writer.py`)과
+별개로, 사업자별 요약·오류상세를 Claude API에 넘겨 자연스러운 비즈니스 문체로 다시
+요약한 결과를 보여줍니다.
+
+다만 **이 버튼을 눌러도 그 순간 API가 호출되지는 않습니다.** 인증 없는 공개 데모에서
+매 클릭마다 실제 LLM API를 호출하면 방문자가 늘수록 그대로 과금되고, 데모 데이터 자체가
+고정 시드라 매번 다시 계산해도 내용이 똑같아서 실익도 없습니다. 그래서 `scripts/generate_demo_ai_summary.py`로
+**로컬에서 실제 API 키로 한 번만 생성**해서 `web/static_data/demo_ai_summary.json`에
+정적으로 저장해 두고, 배포된 서비스는 이 파일을 읽어서 보여주기만 합니다. 업로드한
+실제 파일에는 이 기능 자체를 제공하지 않습니다 (매번 다른 데이터라 미리 구워둘 수
+없고, 라이브로 열면 같은 과금 문제가 재발하기 때문).
+
+```bash
+cp .env.example .env   # .env에 ANTHROPIC_API_KEY=sk-ant-... 채워넣기 (.env는 .gitignore 처리됨)
+pip install anthropic python-dotenv   # 이 스크립트 실행 시에만 필요, 배포 의존성(requirements.txt)엔 미포함
+python scripts/generate_demo_ai_summary.py
+```
+
 ## 웹 서비스: FastAPI API + Vue 프론트엔드
 
 CLI와 동일한 검증 파이프라인을 FastAPI **JSON API**로 감싸고, 그 위에 별도의 **Vue 3 + Vite SPA**를
@@ -150,6 +170,7 @@ Vercel 배포는 `vercel.json`에서 두 빌드를 함께 구성합니다: `api/
 - [x] 웹서비스화 1차: FastAPI 파일 업로드 검증 API + Vue 3 프론트엔드
 - [x] 실제 Vercel 배포: [report-automation-dun.vercel.app](https://report-automation-dun.vercel.app)
 - [x] 메일 작성 버튼: `mailto:` 링크로 제목/본문을 채운 메일 앱 창 열기 (첨부는 수동)
+- [x] AI 요약 (데모 전용, 빌드타임에 미리 생성해 정적 서빙 — 라이브 API 호출 없음)
 
 ## 향후 확장 가능성
 
@@ -179,6 +200,7 @@ mvno-report-automation/
 ├── requirements.txt
 ├── vercel.json
 ├── config.py
+├── .env.example       # scripts/generate_demo_ai_summary.py용 API 키 템플릿
 ├── data/
 │   ├── portal/       # 포털 실적 Excel 더미
 │   ├── raw/          # RAW 데이터 CSV 더미
@@ -197,7 +219,11 @@ mvno-report-automation/
 │   ├── image_builder.py
 │   └── email_writer.py
 ├── web/
-│   └── app.py            # FastAPI 업로드/검증/조회/다운로드 JSON API
+│   ├── app.py            # FastAPI 업로드/검증/조회/다운로드/AI 요약 JSON API
+│   └── static_data/
+│       └── demo_ai_summary.json   # scripts/generate_demo_ai_summary.py로 미리 생성해 둔 데모용 AI 요약
+├── scripts/
+│   └── generate_demo_ai_summary.py   # 데모 AI 요약을 로컬에서 한 번 생성하는 스크립트 (실제 API 키 필요)
 ├── frontend/              # Vue 3 + Vite SPA
 │   └── src/
 │       ├── App.vue
@@ -210,6 +236,7 @@ mvno-report-automation/
 │           └── ErrorTable.vue
 ├── api/
 │   └── index.py          # Vercel 배포 진입점 (web/app.py 재노출)
+├── benchmark/             # 처리량/메모리/정확도 벤치마크 (별도 실험, 배포 앱과 무관 — benchmark/RESULTS.md 참고)
 ├── output/            # 실행 결과물 (xlsx, txt, png, eml)
 ├── main.py
 └── tests/

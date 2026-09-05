@@ -5,6 +5,9 @@ venv/
 .DS_Store
 .vercel/
 
+# scripts/generate_demo_ai_summary.py 실행용 API 키. .env.example만 커밋 대상.
+.env
+
 data/portal/*.xlsx
 data/raw/*.csv
 data/mapping/*.xlsx

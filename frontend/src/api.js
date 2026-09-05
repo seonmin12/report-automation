@@ -52,3 +52,11 @@ export async function getErrors(jobId) {
 export function downloadUrl(jobId, fileType) {
   return `${API_BASE}/download/${jobId}/${fileType}`
 }
+
+export async function getAiSummary(jobId) {
+  const response = await fetch(`${API_BASE}/api/ai-summary/${jobId}`)
+  if (!response.ok) {
+    throw new ApiError(await parseErrorDetail(response), response.status)
+  }
+  return response.json()
+}

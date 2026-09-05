@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watchEffect } from "vue"
-import { getSummary, getErrors, downloadUrl } from "../api.js"
+import { getSummary, getErrors, getAiSummary, downloadUrl } from "../api.js"
 import SummaryCards from "./SummaryCards.vue"
 import OperatorTable from "./OperatorTable.vue"
 import ErrorTable from "./ErrorTable.vue"
@@ -12,6 +12,71 @@ const summary = ref(null)
 const errors = ref([])
 const loading = ref(true)
 const error = ref("")
+
+// 데모 job 전용. scripts/generate_demo_ai_summary.py로 미리 생성해 둔 결과를 보여줄
+// 뿐이라, 버튼을 눌러도 그때 API가 호출되는 게 아니다 (web/app.py의 /api/ai-summary 참고).
+const aiSummary = ref(null)
+const aiSummaryLoading = ref(false)
+const aiSummaryError = ref("")
+
+async function loadAiSummary() {
+  aiSummaryLoading.value = true
+  aiSummaryError.value = ""
+  try {
+    aiSummary.value = await getAiSummary(props.jobId)
+  } catch (err) {
+    aiSummaryError.value = err.message
+  } finally {
+    aiSummaryLoading.value = false
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+// AI 요약 본문에서 상품코드(PRD로 시작)·사업자코드(MVN숫자)·사업자명을 굵게 강조한다.
+// 사업자명은 하드코딩하지 않고 summary.operators에서 실제 값을 가져와 패턴을 만든다 —
+// 더미 사업자 목록이 바뀌어도 그대로 맞는다.
+function highlight(text) {
+  const operatorNames = (summary.value?.operators ?? []).map((op) => op["사업자명"])
+  const pattern = new RegExp(`(PRD[A-Z0-9]+|MVN\\d+${operatorNames.length ? "|" + operatorNames.join("|") : ""})`, "g")
+  return escapeHtml(text).replace(pattern, "<strong>$1</strong>")
+}
+
+// AI 요약 텍스트(마크다운 볼드 제목 한 줄 + 이어지는 문장들)를 제목/문단/마지막
+// 제안 문장으로 나눠서 가독성 있게 보여준다. 내용 자체는 안 바꾸고 표시 방식만
+// 바꾸는 것 — 프롬프트가 "마지막 문장은 담당자 제안으로 마무리"를 요구하므로,
+// 마지막 문장을 별도 강조 박스로 뺀다.
+const parsedAiSummary = computed(() => {
+  if (!aiSummary.value) return null
+  const raw = aiSummary.value.summary.trim()
+  const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+
+  let title = ""
+  let bodyLines = lines
+  const titleMatch = lines[0]?.match(/^\*\*(.+?)\*\*$/)
+  if (titleMatch) {
+    title = titleMatch[1]
+    bodyLines = lines.slice(1)
+  }
+
+  const sentences = bodyLines
+    .join(" ")
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const action = sentences.length > 1 ? sentences[sentences.length - 1] : ""
+  const mainSentences = action ? sentences.slice(0, -1) : sentences
+
+  const paragraphs = []
+  for (let i = 0; i < mainSentences.length; i += 2) {
+    paragraphs.push(highlight(mainSentences.slice(i, i + 2).join(" ")))
+  }
+
+  return { title, paragraphs, action: action ? highlight(action) : "" }
+})
 
 // email_writer.py의 제목/인사말/맺음말 문구를 그대로 맞춰서, 메일 앱에서 열었을 때
 // 다운로드되는 .eml 초안과 동일한 제목/본문이 보이도록 한다.
@@ -60,6 +125,35 @@ watchEffect(async () => {
     </div>
 
     <SummaryCards :summary="summary" />
+
+    <section v-if="summary.is_demo" class="ai-summary-section">
+      <h2>✨ AI 요약 <span class="count-pill">데모 전용</span></h2>
+      <button
+        v-if="!aiSummary"
+        class="ai-summary-btn"
+        :disabled="aiSummaryLoading"
+        @click="loadAiSummary"
+      >
+        {{ aiSummaryLoading ? "불러오는 중..." : "AI 요약 보기" }}
+      </button>
+      <div v-if="aiSummaryError" class="error">{{ aiSummaryError }}</div>
+      <div v-if="aiSummary" class="ai-summary-box">
+        <h3 v-if="parsedAiSummary.title" class="ai-summary-title">{{ parsedAiSummary.title }}</h3>
+        <p
+          v-for="(para, idx) in parsedAiSummary.paragraphs"
+          :key="idx"
+          class="ai-summary-text"
+          v-html="para"
+        ></p>
+        <div v-if="parsedAiSummary.action" class="ai-summary-action">
+          <span class="ai-summary-action-icon">📌</span>
+          <span v-html="parsedAiSummary.action"></span>
+        </div>
+        <div class="ai-summary-meta">
+          {{ aiSummary.model }} · {{ aiSummary.generated_at }} 미리 생성됨 (지금 실시간 호출 아님)
+        </div>
+      </div>
+    </section>
 
     <section>
       <h2>오류유형별 건수</h2>
@@ -245,5 +339,70 @@ watchEffect(async () => {
   font-size: 12px;
   color: var(--ink-faint);
   margin-top: 10px;
+}
+
+.ai-summary-btn {
+  padding: 9px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+}
+.ai-summary-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.ai-summary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.ai-summary-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
+}
+.ai-summary-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ai-summary-text {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.ai-summary-text:last-of-type {
+  margin-bottom: 16px;
+}
+.ai-summary-text :deep(strong) {
+  color: var(--accent);
+  font-weight: 700;
+}
+.ai-summary-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--accent-soft-text);
+}
+.ai-summary-action :deep(strong) {
+  font-weight: 700;
+}
+.ai-summary-action-icon {
+  flex-shrink: 0;
+}
+.ai-summary-meta {
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 </style>
